@@ -46,7 +46,7 @@ class AuthControllerTest {
                 .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
-                .body("code", equalTo(4002))
+                .body("code", equalTo(1001))
                 .body("message", equalTo("用户名或密码错误"));
     }
 
