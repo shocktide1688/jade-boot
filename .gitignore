@@ -55,3 +55,6 @@ docs/
 *.swp
 *.swo
 *~
+
+# Grafana render 失败的临时截图
+monitoring/screenshots/

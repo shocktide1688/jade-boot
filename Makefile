@@ -63,15 +63,27 @@ backend-clean: ## 清理后端构建产物
 	@cd $(BACKEND_DIR) && JAVA_HOME="$(JAVA_HOME)" ./mvnw -B clean
 
 # ---------------- Docker ----------------
-.PHONY: docker-build docker-run docker-native
+.PHONY: docker-build docker-run docker-native docker-native-run
 docker-build: ## 构建后端 Docker 镜像（JVM）
 	cd $(BACKEND_DIR) && docker build -f jade-demo/Dockerfile -t jade-demo:1.0.0 .
 
-docker-run: ## 运行后端 Docker 容器
+docker-run: ## 运行后端 Docker 容器（JVM）
 	docker run --rm -p 8080:8080 --network jade_default --name jade-demo jade-demo:1.0.0
 
-docker-native: ## 构建 GraalVM Native 镜像
-	cd $(BACKEND_DIR)/jade-demo && docker build -f Dockerfile.native -t jade-demo:native .
+docker-native: ## 构建 GraalVM Native Image（容器内构建，宿主机无需 GraalVM）
+	cd $(BACKEND_DIR) && docker build -f jade-demo/Dockerfile.native -t jade-demo:native .
+
+docker-native-run: ## 运行 Native Image（283MB，73ms 启动）
+	docker run --rm -p 8080:8080 --network jade_default --name jade-demo \
+		-e DB_URL=jdbc:postgresql://jade-postgres:5432/jade \
+		-e DB_USERNAME=postgres \
+		-e DB_PASSWORD=postgres \
+		-e REDIS_URL=redis://jade-redis:6379 \
+		-e JADE_JWT_SECRET=test-only-jwt-secret-min-32-bytes-required-please-ok \
+		-e JADE_CRYPTO_MASTER_KEY=test-only-aes-256-bit-key-32-bytes-required-x \
+		-e JADE_JWT_EXPIRE_SECONDS=7200 \
+		-e JADE_JWT_ISSUER=jade-platform \
+		jade-demo:native
 
 # ---------------- 前端 ----------------
 .PHONY: fe-install fe-dev fe-build fe-gen
@@ -118,7 +130,7 @@ reset-db: ## 重置数据库（清空 + 重新跑 Flyway）
 	@echo "✅ 数据库已重置，下次启动时 Flyway 会自动建表"
 
 # ---------------- 健康检查 ----------------
-.PHONY: health login
+.PHONY: health login metrics grafana-import
 health: ## 检查后端健康
 	@curl -s http://localhost:8080/q/health | head -10
 
@@ -126,3 +138,9 @@ login: ## 用默认账号登录测试
 	@curl -s -X POST http://localhost:8080/api/v1/auth/login \
 		-H "Content-Type: application/json" \
 		-d '{"username":"admin","password":"admin123"}' | head -3
+
+metrics: ## 查看业务指标摘要
+	@curl -s http://localhost:8080/api/v1/metrics/summary | python3 -m json.tool
+
+grafana-import: ## 导入/更新 Grafana 业务仪表板
+	@./monitoring/import-dashboard.sh
