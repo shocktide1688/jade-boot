@@ -1,0 +1,54 @@
+# =====================================================
+# Jade Platform · GraalVM Native 镜像
+# =====================================================
+# 用法：
+#   docker build -f backend/jade-demo/Dockerfile.native -t jade-demo:native backend/jade-demo/
+#   docker run --rm -p 8080:8080 jade-demo:native
+#
+# 前提：基础镜像 ghcr.io/graalvm/native-image:21 已 docker pull
+# =====================================================
+
+# ============ Stage 1: 构建 native 二进制 ============
+FROM ghcr.io/graalvm/native-image:21 AS builder
+WORKDIR /build
+
+# ghcr.io/graalvm/native-image 极简，连 tar 都没有（mvnw 需要）
+# 用 microdnf 装（Oracle Linux 用 microdnf，不是 apt）
+USER root
+RUN microdnf install -y tar gzip findutils \
+    && microdnf clean all
+
+# 强制用 GraalVM 自带的 JDK 21（避免 mvnw 找到系统其他 javac）
+ENV JAVA_HOME=/opt/graalvm-ce-java21-21
+ENV PATH=$JAVA_HOME/bin:$PATH
+RUN java -version && javac -version
+
+# 用阿里云 Maven 镜像（国内场景）
+COPY jade-demo/settings-docker.xml /root/.m2/settings.xml
+
+# 拷贝整个项目
+COPY . .
+
+# 构建 native（GraalVM 直接编译）
+RUN ./mvnw -B -DskipTests -pl jade-demo -am package -Dnative
+
+# ============ Stage 2: 运行时（极小镜像）============
+FROM debian:bookworm-slim
+WORKDIR /app
+
+# 装运行时依赖（native binary 需要 glibc/zlib）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates libstdc++6 zlib1g libgcc1 wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# 从 builder 拷贝编译好的 native binary
+COPY --from=builder /build/jade-demo/target/*-runner /app/jade-demo
+RUN chmod +x /app/jade-demo
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/jade-demo"]
+
+# 健康检查
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
+    CMD wget -qO- http://localhost:8080/q/health/live || exit 1
