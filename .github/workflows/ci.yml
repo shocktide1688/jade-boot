@@ -30,6 +30,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     env:
+      DB_URL: jdbc:postgresql://localhost:5432/jade_test
       QUARKUS_REDIS_HOSTS: redis://localhost:6379
     services:
       postgres:
