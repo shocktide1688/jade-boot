@@ -87,8 +87,11 @@ public class CodeGenEngine {
         data.put("package", config.getBasePackage());
         data.put("module", config.getModuleName());
         data.put("author", config.getAuthor());
+        data.put("idStrategy", config.getIdStrategy());
         data.put("date", new Date());
         data.put("columns", table.getColumns());
+        table.getColumns().stream().filter(c -> c.isPrimaryKey()).findFirst()
+                .ifPresent(c -> data.put("primaryKeyName", SchemaReader.toCamelCase(c.getName())));
 
         // 生成各类文件
         writeFile(data, "Entity.java.ftl",     getOutPath("entity", className + ".java"));

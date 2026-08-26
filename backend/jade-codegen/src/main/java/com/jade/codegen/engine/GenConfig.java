@@ -28,4 +28,8 @@ public class GenConfig {
     /** 作者（生成到文件 header） */
     @Builder.Default
     private String author = "Jade Codegen";
+
+    /** 主键策略：IDENTITY（兼容旧表）或 SNOWFLAKE（应用层生成） */
+    @Builder.Default
+    private String idStrategy = "IDENTITY";
 }

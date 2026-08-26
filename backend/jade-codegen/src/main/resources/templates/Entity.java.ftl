@@ -19,6 +19,10 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 </#if>
+<#if idStrategy == "SNOWFLAKE">
+import com.jade.redis.id.SnowflakeIdGenerator;
+import jakarta.enterprise.inject.spi.CDI;
+</#if>
 
 /**
  * ${table.comment!className}（自动生成）
@@ -36,11 +40,15 @@ public class ${className} extends PanacheEntityBase {
      */
     <#if col.primaryKey>
     @Id
+    <#if idStrategy == "SNOWFLAKE">
+    @Column(nullable = false, updatable = false)
+    <#else>
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     </#if>
-    <#if !col.nullable && !col.primaryKey>
+    </#if>
+    <#if !col.primaryKey && !col.nullable>
     @Column(nullable = false<#if col.length?? && col.length != 0>, length = ${col.length}</#if>)
-    <#elseIf col.length?? && col.length != 0>
+    <#elseif !col.primaryKey && col.length?? && col.length != 0>
     @Column(length = ${col.length})
     </#if>
     <#if col.name == "created_at">
@@ -52,4 +60,13 @@ public class ${className} extends PanacheEntityBase {
     public ${col.javaType} ${SchemaReader.toCamelCase(col.name)};
 
 </#list>
+
+<#if idStrategy == "SNOWFLAKE">
+    @PrePersist
+    void assignId() {
+        if (${primaryKeyName} == null) {
+            ${primaryKeyName} = CDI.current().select(SnowflakeIdGenerator.class).get().nextId();
+        }
+    }
+</#if>
 }
