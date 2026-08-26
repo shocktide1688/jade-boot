@@ -25,7 +25,7 @@ quarkus:
       enabled: false
 
   redis:
-    hosts: redis://localhost:6380
+    hosts: ${REDIS_URL:redis://localhost:6379}
     devservices:
       enabled: false
 
@@ -52,6 +52,17 @@ quarkus:
     binder:
       jvm: true
       system: true
+    # 让所有 timer 输出 histogram（不是 summary），Grafana 才能算 p95
+    # Prometheus 输出的名字带 _duration_（http.server.requests → http_server_requests_duration_seconds）
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        jade.login.duration: true
+        jade.order.duration: true
+      slo:
+        http.server.requests: 10ms,50ms,100ms,200ms,500ms,1s,2s,5s
+        jade.login.duration: 50ms,100ms,200ms,500ms,1s
+        jade.order.duration: 5ms,10ms,50ms,100ms,500ms
     export:
       prometheus:
         path: /q/metrics

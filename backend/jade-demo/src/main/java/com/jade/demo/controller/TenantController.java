@@ -3,6 +3,7 @@ package com.jade.demo.controller;
 import com.jade.common.api.R;
 import com.jade.demo.entity.SysProject;
 import com.jade.demo.entity.SysTenant;
+import com.jade.demo.metrics.BusinessMetrics;
 import com.jade.demo.repository.SysProjectRepository;
 import com.jade.demo.repository.SysTenantRepository;
 import com.jade.security.context.TenantContext;
@@ -43,6 +44,9 @@ public class TenantController {
     @Inject
     SecurityIdentity identity;
 
+    @Inject
+    BusinessMetrics metrics;
+
     // ============== 租户管理（仅管理员）==============
 
     @POST
@@ -52,6 +56,7 @@ public class TenantController {
     @Operation(summary = "创建租户（仅管理员）")
     public R<SysTenant> createTenant(SysTenant tenant) {
         tenantRepository.persist(tenant);
+        metrics.recordTenantCreated();
         return R.ok(tenant);
     }
 

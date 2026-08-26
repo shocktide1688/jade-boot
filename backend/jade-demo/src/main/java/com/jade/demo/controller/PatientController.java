@@ -2,6 +2,7 @@ package com.jade.demo.controller;
 
 import com.jade.common.api.R;
 import com.jade.demo.entity.SysPatient;
+import com.jade.demo.metrics.BusinessMetrics;
 import com.jade.demo.repository.SysPatientRepository;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
@@ -24,11 +25,15 @@ public class PatientController {
     @Inject
     SysPatientRepository repository;
 
+    @Inject
+    BusinessMetrics metrics;
+
     @POST
     @Transactional
     @Operation(summary = "创建病人（DB 自动加密敏感字段）")
     public R<SysPatient> create(SysPatient patient) {
         repository.persist(patient);
+        metrics.recordPatientCreated();
         return R.ok(patient);
     }
 

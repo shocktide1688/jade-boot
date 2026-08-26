@@ -7,8 +7,10 @@ import com.jade.common.exception.BizException;
 import com.jade.demo.dto.LoginRequest;
 import com.jade.demo.dto.LoginResponse;
 import com.jade.demo.entity.SysUser;
+import com.jade.demo.metrics.BusinessMetrics;
 import com.jade.demo.repository.SysUserRepository;
 import com.jade.security.jwt.MpJwtUtil;
+import io.micrometer.core.instrument.Timer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -34,42 +36,52 @@ public class AuthService {
     @Inject
     MpJwtUtil mpJwtUtil;
 
+    @Inject
+    BusinessMetrics metrics;
+
     @ConfigProperty(name = "jade.jwt.expire-seconds", defaultValue = "7200")
     long expireSeconds;
 
     public R<LoginResponse> login(LoginRequest req) {
-        // 1) 查用户
-        SysUser user = userRepository.findByUsername(req.getUsername()).orElse(null);
+        Timer.Sample sample = Timer.start();
+        try {
+            // 1) 查用户
+            SysUser user = userRepository.findByUsername(req.getUsername()).orElse(null);
 
-        // 2) 校验密码（统一 BCrypt 路径）
-        //    重要：无论用户是否存在都执行一次 BCrypt.verify，防止时间侧信道泄露用户存在
-        boolean valid = verifyPassword(user, req.getPassword());
+            // 2) 校验密码（统一 BCrypt 路径）
+            //    重要：无论用户是否存在都执行一次 BCrypt.verify，防止时间侧信道泄露用户存在
+            boolean valid = verifyPassword(user, req.getPassword());
 
-        if (user == null || !valid) {
-            // 统一错误消息，不暴露用户存在性
-            throw new BizException(ResultCode.UNAUTHORIZED, "用户名或密码错误");
+            if (user == null || !valid) {
+                metrics.recordLoginFailure();
+                throw new BizException(ResultCode.UNAUTHORIZED, "用户名或密码错误");
+            }
+
+            // 3) 校验账号状态
+            if (user.status == 0) {
+                metrics.recordLoginFailure();
+                throw new BizException(ResultCode.FORBIDDEN, "账号已被禁用");
+            }
+
+            // 4) 生成 token（绑 tenantId 到 JWT claim，供 TenantFilter 读取）
+            Set<String> roles = Set.of("admin", "user");  // 简化：实际应从 user_role 表读
+            String token = mpJwtUtil.generate(
+                    user.id,
+                    user.username,
+                    roles,
+                    user.tenantId == null ? 0L : user.tenantId  // 系统管理员可能无 tenant
+            );
+
+            metrics.recordLoginSuccess();
+            return R.ok(new LoginResponse(
+                    token,
+                    "Bearer",
+                    expireSeconds,
+                    new LoginResponse.UserInfo(user.id, user.username, user.nickname, user.email)
+            ));
+        } finally {
+            sample.stop(metrics.loginTimer());
         }
-
-        // 3) 校验账号状态
-        if (user.status == 0) {
-            throw new BizException(ResultCode.FORBIDDEN, "账号已被禁用");
-        }
-
-        // 4) 生成 token（绑 tenantId 到 JWT claim，供 TenantFilter 读取）
-        Set<String> roles = Set.of("admin", "user");  // 简化：实际应从 user_role 表读
-        String token = mpJwtUtil.generate(
-                user.id,
-                user.username,
-                roles,
-                user.tenantId == null ? 0L : user.tenantId  // 系统管理员可能无 tenant
-        );
-
-        return R.ok(new LoginResponse(
-                token,
-                "Bearer",
-                expireSeconds,
-                new LoginResponse.UserInfo(user.id, user.username, user.nickname, user.email)
-        ));
     }
 
     /**
