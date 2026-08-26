@@ -6,7 +6,7 @@
 #   docker run -p 8080:8080 jade-demo:1.0.0
 
 # ============ Stage 1: 构建 ============
-FROM eclipse-temurin:21-jdk AS builder
+FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /build
 
 # 用阿里云镜像加速（国内场景）
@@ -25,11 +25,11 @@ COPY jade-codegen/pom.xml jade-codegen/
 COPY jade-demo/pom.xml jade-demo/
 
 # 预下载依赖
-RUN ./mvnw -B -q dependency:go-offline || true
+RUN mvn -B -q dependency:go-offline || true
 
 # 拷贝源码并构建
 COPY . .
-RUN ./mvnw -B -DskipTests -pl jade-demo -am package
+RUN mvn -B -DskipTests -pl jade-demo -am package
 
 # ============ Stage 2: 运行时 ============
 FROM eclipse-temurin:21-jre
