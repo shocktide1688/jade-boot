@@ -1,4 +1,4 @@
-# Jade Platform · 玉
+# Jade Platform
 
 > **温润如玉，稳定如石** — 基于 Quarkus 3.15 + Vue 3 的全栈开发底座。
 
