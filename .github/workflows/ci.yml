@@ -50,17 +50,15 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
+          # POSTGRES_DB 是主库 (jade-demo 用)
+          # 额外业务库 (jade_admin) + 兼容库 (jade) 由 build 前 step 用 psql 创
+          # 原因: 挂 init script volume 会把源文件 ownership 改成 root, checkout 删不动
           POSTGRES_DB: jade_demo
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-        # 挂 init script: 创建 jade_admin + jade 业务库
-        # 用 ${{ github.workspace }} 绝对路径 (相对路径在 service container CWD 解析不到)
-        volumes:
-          - ${{ github.workspace }}/docker/postgres-initdb.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
         ports:
           - 5432:5432
-        # 不加 healthcheck — GitHub Actions 默认会等服务端口 listen
-        # (pg_isready 跟 init 顺序有 race, 之前坑过好几次)
+        # 不加 healthcheck (pg_isready 跟 init race, 之前坑过; GHA 默认等端口 listen)
       redis:
         image: redis:7-alpine
         ports:
@@ -73,6 +71,14 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
+      - name: Create additional databases
+        # 官方 postgres 镜像不支持 POSTGRES_MULTIPLE_DATABASES, 挂 init volume 又会让 checkout 删不动
+        # 用 postgresql-client 直接建库最稳
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          PGPASSWORD=postgres psql -h localhost -U postgres -d jade_demo -c "CREATE DATABASE jade_admin;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d jade_demo -c "CREATE DATABASE jade;"
       - name: Build & Test
         run: |
           cd backend
