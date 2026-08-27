@@ -68,7 +68,9 @@ jobs:
       - name: Build & Test
         run: |
           cd backend
-          mvn -B verify -DskipITs
+          # 跑单测 + 编译所有模块
+          # 集成测试需要 PG/Redis，本地 CI 用 testcontainers
+          mvn -B clean verify -DskipITs -Dmaven.test.failure.ignore=false
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
