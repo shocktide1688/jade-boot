@@ -75,7 +75,23 @@ jobs:
           cd backend
           # 跑单测 + 编译所有模块
           # 集成测试需要 PG/Redis，本地 CI 用 testcontainers
-          mvn -B clean verify -DskipITs -Dmaven.test.failure.ignore=false
+          mvn -B clean verify -DskipITs -Dmaven.test.failure.ignore=false 2>&1 | tee /tmp/mvn-build.log
+          MAVEN_EXIT=${PIPESTATUS[0]}
+          echo "maven exit code: $MAVEN_EXIT"
+          # 出错时把 tail 写到 step log, 方便 annotation
+          if [ $MAVEN_EXIT -ne 0 ]; then
+            echo "::group::maven build log (tail 200)"
+            tail -200 /tmp/mvn-build.log
+            echo "::endgroup::"
+            exit $MAVEN_EXIT
+          fi
+      - name: Upload mvn log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-mvn-log
+          path: /tmp/mvn-build.log
+          if-no-files-found: warn
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
