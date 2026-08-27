@@ -56,12 +56,13 @@ class DataScopeE2ETest {
 
     @Test
     @Order(1)
-    void admin_sees_all_7_users() {
+    void admin_sees_all_seed_users() {
+        // 至少包含 7 个 seed user, total 可能 >= 7 (因为 UserControllerTest 可能先跑过留下 testuser)
         pageAs("admin", "admin123")
             .then()
                 .statusCode(200)
                 .body("code", equalTo(0))
-                .body("data.total", equalTo(7))
+                .body("data.total", greaterThanOrEqualTo(7))
                 .body("data.records.username", hasItems(
                         "admin", "alice", "bob", "charlie", "user", "tenant", "dave"));
     }

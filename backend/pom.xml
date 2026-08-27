@@ -35,7 +35,7 @@
         <jade.version>1.0.0-SNAPSHOT</jade.version>
 
         <!-- 第三方版本 -->
-        <quarkus.platform.version>3.33.1</quarkus.platform.version>
+        <quarkus.platform.version>3.39.1</quarkus.platform.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
 
