@@ -10,7 +10,7 @@ import com.jade.security.entity.SysUser;
 import com.jade.security.repository.SysUserRepository;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.common.Page;
-import io.quarkus.panache.common.Sort;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
@@ -38,27 +38,41 @@ public class UserController {
     @Inject
     SysUserRepository userRepository;
 
+    @Inject
+    SecurityIdentity identity;
+
     @GET
     @Path("/page")
-    @Operation(summary = "分页查询用户")
+    @Operation(summary = "分页查询用户 (按当前用户 data-scope 过滤)")
     @Transactional
     public R<PageResult<SysUser>> page(
             @QueryParam("page") @DefaultValue("1") int page,
             @QueryParam("size") @DefaultValue("10") int size,
             @QueryParam("keyword") String keyword) {
 
-        String query = (keyword != null && !keyword.isBlank())
+        // 1) 拿当前登录用户 (用于 dataScope 决定)
+        SysUser currentUser = identity == null || identity.isAnonymous()
+                ? null
+                : userRepository.findByUsername(identity.getPrincipal().getName()).orElse(null);
+        String dataScope = userRepository.resolveCurrentUserDataScope(currentUser);
+
+        // 2) 基础查询条件 (deleted + keyword), dataScope 在 findByDataScope 里追加
+        String base = (keyword != null && !keyword.isBlank())
                 ? "deleted = false and (username like ?1 or nickname like ?1 or email like ?1)"
                 : "deleted = false";
-        Object[] params = (keyword != null && !keyword.isBlank())
+        Object[] baseParams = (keyword != null && !keyword.isBlank())
                 ? new Object[]{"%" + keyword + "%"}
                 : new Object[]{};
 
-        PanacheQuery<SysUser> q = userRepository.find(query, Sort.by("createdAt").descending(), params);
+        // 3) 拿带 data-scope 过滤的 query
+        PanacheQuery<SysUser> q = currentUser == null
+                ? userRepository.findByDataScope(new SysUser(), "ALL", base, baseParams) // 没登录, 用匿名 (不会真到这)
+                : userRepository.findByDataScope(currentUser, dataScope, base, baseParams);
+
         long total = q.count();
         List<SysUser> records = q.page(Page.of(page - 1, size)).list();
 
-        // 隐藏 password（先 flush，再 set null）
+        // 隐藏 password (先 flush 再 set null, 避免写回 DB)
         if (!records.isEmpty()) {
             userRepository.getEntityManager().flush();
             for (SysUser u : records) {
