@@ -33,4 +33,7 @@ public class SysProject extends PanacheEntityBase {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     public OffsetDateTime createdAt;
+
+    @Column(nullable = false)
+    public Boolean deleted = false;
 }

@@ -1,15 +1,15 @@
 package com.jade.admin.controller;
 
-import com.jade.common.api.R;
+import com.jade.admin.aspect.Log;
 import com.jade.admin.entity.SysProject;
-import com.jade.web.entity.SysTenant;
-import com.jade.admin.metrics.BusinessMetrics;
 import com.jade.admin.repository.SysProjectRepository;
-import com.jade.web.repository.SysTenantRepository;
+import com.jade.common.api.R;
 import com.jade.security.context.TenantContext;
+
+import com.jade.web.repository.SysTenantRepository;
+import com.jade.web.entity.SysTenant;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
-import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -21,18 +21,17 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import java.util.List;
 
 /**
- * 多租户接口（修复了安全审计中的越权问题）
+ * 租户 + 项目管理
  *
- * 权限规则：
- *   - 租户管理（/tenants）   : 仅 admin 角色
- *   - 项目管理（/projects）   : 任何已登录用户，但只能操作自己所属租户的数据
- *   - 创建项目时自动绑定当前用户所属租户（不允许通过 X-Tenant-Id 切换）
+ * 权限：
+ *   - 租户管理（/tenants）：仅 admin
+ *   - 项目管理（/projects）：任何登录用户，只能操作自己租户
  */
 @Path("/api/v1")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "多租户")
-@Authenticated   // 修复 1：移除类级 @PermitAll，必须登录
+@Tag(name = "租户/项目")
+@Authenticated
 public class TenantController {
 
     @Inject
@@ -44,49 +43,104 @@ public class TenantController {
     @Inject
     SecurityIdentity identity;
 
-    @Inject
-    BusinessMetrics metrics;
-
-    // ============== 租户管理（仅管理员）==============
-
-    @POST
-    @Path("/tenants")
-    @RolesAllowed("admin")   // 修复 2：必须 admin 角色
-    @Transactional
-    @Operation(summary = "创建租户（仅管理员）")
-    public R<SysTenant> createTenant(SysTenant tenant) {
-        tenantRepository.persist(tenant);
-        metrics.recordTenantCreated();
-        return R.ok(tenant);
-    }
+    // ============ 租户管理（仅 admin）==========
 
     @GET
     @Path("/tenants")
-    @RolesAllowed("admin")   // 修复 2：仅管理员可查看所有租户
+    @RolesAllowed("admin")
     @Operation(summary = "查询所有租户（仅管理员）")
     public R<List<SysTenant>> listTenants() {
         return R.ok(tenantRepository.listAll());
     }
 
-    // ============== 项目（任何登录用户，只能看自己租户的）==============
+    @GET
+    @Path("/tenants/{id}")
+    @RolesAllowed("admin")
+    @Operation(summary = "租户详情")
+    public R<SysTenant> getTenant(@PathParam("id") Long id) {
+        SysTenant t = tenantRepository.findById(id);
+        if (t == null) return R.fail(404, "租户不存在");
+        return R.ok(t);
+    }
+
+    @POST
+    @Path("/tenants")
+    @RolesAllowed("admin")
+    @Transactional
+    @Log(title = "租户管理", businessType = 1)
+    @Operation(summary = "创建租户（仅管理员）")
+    public R<SysTenant> createTenant(SysTenant tenant) {
+        tenant.id = null;
+        if (tenant.status == null) tenant.status = 1;
+        tenantRepository.persist(tenant);
+        return R.ok(tenant);
+    }
+
+    @PUT
+    @Path("/tenants/{id}")
+    @RolesAllowed("admin")
+    @Transactional
+    @Log(title = "租户管理", businessType = 2)
+    @Operation(summary = "更新租户")
+    public R<SysTenant> updateTenant(@PathParam("id") Long id, SysTenant req) {
+        SysTenant t = tenantRepository.findById(id);
+        if (t == null) return R.fail(404, "租户不存在");
+        if (req.code != null) t.code = req.code;
+        if (req.name != null) t.name = req.name;
+        if (req.status != null) t.status = req.status;
+        tenantRepository.persist(t);
+        return R.ok(t);
+    }
+
+    @DELETE
+    @Path("/tenants/{id}")
+    @RolesAllowed("admin")
+    @Transactional
+    @Log(title = "租户管理", businessType = 3)
+    @Operation(summary = "删除租户")
+    public R<Void> deleteTenant(@PathParam("id") Long id) {
+        SysTenant t = tenantRepository.findById(id);
+        if (t == null) return R.fail(404, "租户不存在");
+        tenantRepository.delete(t);
+        return R.ok();
+    }
+
+    // ============ 项目（登录用户，只能看自己租户的）==========
+
+    @GET
+    @Path("/projects")
+    @Operation(summary = "查询当前租户的项目")
+    public R<List<SysProject>> listProjects() {
+        Long tenantId = TenantContext.require();
+        return R.ok(projectRepository.list("tenantId = ?1 and deleted = false", tenantId));
+    }
 
     @POST
     @Path("/projects")
     @Transactional
-    @Operation(summary = "创建项目（自动绑定当前用户所属租户）")
+    @Log(title = "项目管理", businessType = 1)
+    @Operation(summary = "创建项目（自动绑当前用户租户）")
     public R<SysProject> createProject(SysProject project) {
-        // 修复 3：使用 JWT 中的 tenantId，不允许通过 header 切换
         Long tenantId = TenantContext.require();
+        project.id = null;
         project.tenantId = tenantId;
+        if (project.deleted == null) project.deleted = false;
         projectRepository.persist(project);
         return R.ok(project);
     }
 
-    @GET
-    @Path("/projects")
-    @Operation(summary = "查询当前租户的项目（隔离）")
-    public R<List<SysProject>> listProjects() {
+    @DELETE
+    @Path("/projects/{id}")
+    @Transactional
+    @Log(title = "项目管理", businessType = 3)
+    @Operation(summary = "删除项目")
+    public R<Void> deleteProject(@PathParam("id") Long id) {
         Long tenantId = TenantContext.require();
-        return R.ok(projectRepository.list("tenantId = ?1 and deleted = false", tenantId));
+        SysProject p = projectRepository.findById(id);
+        if (p == null) return R.fail(404, "项目不存在");
+        if (!tenantId.equals(p.tenantId)) return R.fail(403, "无权操作其他租户的项目");
+        p.deleted = true;
+        projectRepository.persist(p);
+        return R.ok();
     }
 }
