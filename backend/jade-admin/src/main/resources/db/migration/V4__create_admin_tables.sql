@@ -6,6 +6,62 @@
 -- 软删：deleted BOOLEAN DEFAULT FALSE
 -- =====================================================
 
+-- 0. 共享依赖表 (IF NOT EXISTS, 让 jade-admin 单跑 CI 时自包含)
+--    这些表原本在 jade-demo 模块的 V1~V3 创建
+--    用 IF NOT EXISTS 跟 demo 兼容 (已存在就跳过, 不重复 create)
+CREATE TABLE IF NOT EXISTS sys_user (
+    id          BIGSERIAL    PRIMARY KEY,
+    username    VARCHAR(64)  NOT NULL UNIQUE,
+    password    VARCHAR(128) NOT NULL,
+    nickname    VARCHAR(64),
+    email       VARCHAR(128),
+    phone       VARCHAR(32),
+    status      SMALLINT     NOT NULL DEFAULT 1,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
+    tenant_id   BIGINT                                  -- V3 加的列, IF NOT EXISTS 不能加列, 见下面 ALTER
+);
+COMMENT ON TABLE  sys_user             IS '系统用户表';
+
+-- 0.1 sys_user 加 tenant_id 列 (如果还没加, V3 应该加过; IF NOT EXISTS 兼容 PG 9.6+)
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS tenant_id BIGINT;
+
+CREATE INDEX IF NOT EXISTS idx_sys_user_status ON sys_user(status);
+CREATE INDEX IF NOT EXISTS idx_sys_user_created ON sys_user(created_at);
+
+CREATE TABLE IF NOT EXISTS sys_tenant (
+    id          BIGSERIAL    PRIMARY KEY,
+    code        VARCHAR(64)  NOT NULL UNIQUE,
+    name        VARCHAR(128) NOT NULL,
+    status      SMALLINT     NOT NULL DEFAULT 1,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sys_tenant_status ON sys_tenant(status);
+COMMENT ON TABLE sys_tenant IS '租户表';
+
+CREATE TABLE IF NOT EXISTS sys_project (
+    id          BIGSERIAL    PRIMARY KEY,
+    tenant_id   BIGINT       NOT NULL,
+    name        VARCHAR(128) NOT NULL,
+    description VARCHAR(512),
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sys_project_tenant ON sys_project(tenant_id);
+COMMENT ON COLUMN sys_project.tenant_id IS '所属租户（多租户隔离字段）';
+
+CREATE TABLE IF NOT EXISTS sys_patient (
+    id          BIGSERIAL    PRIMARY KEY,
+    tenant_id   BIGINT       NOT NULL,
+    name        VARCHAR(64)  NOT NULL,
+    -- idCard / phone 是 AES-256-GCM 密文, 真实加密走 JPA @Encrypted
+    id_card     VARCHAR(512),
+    phone       VARCHAR(128),
+    email       VARCHAR(128),
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    deleted     BOOLEAN      NOT NULL DEFAULT FALSE
+);
+
 -- 1. 先 drop V1 留下的占位表（sys_role / sys_user_role 是 V1 的简化版）
 DROP TABLE IF EXISTS sys_user_role CASCADE;
 DROP TABLE IF EXISTS sys_role CASCADE;

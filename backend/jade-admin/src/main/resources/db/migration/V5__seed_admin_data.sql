@@ -5,6 +5,19 @@
 -- 测试用户:   user  / user123
 -- =====================================================
 
+-- 0. 默认租户 + 默认 admin 用户 (跟 V7 的 hash 一致, 保证 admin123 密码)
+--    V1~V3 在 jade-demo 模块也 seed, 这里 IF NOT EXISTS 兼容已存在的 (用 V7 的统一 hash)
+INSERT INTO sys_tenant (id, code, name, status) VALUES (1, 't_001', '租户 A', 1)
+ON CONFLICT (code) DO NOTHING;
+INSERT INTO sys_tenant (id, code, name, status) VALUES (2, 't_002', '租户 B', 1)
+ON CONFLICT (code) DO NOTHING;
+SELECT setval('sys_tenant_id_seq', GREATEST(2, (SELECT COALESCE(MAX(id), 0) FROM sys_tenant)));
+
+INSERT INTO sys_user (id, username, password, nickname, email, status, tenant_id, deleted)
+VALUES (1, 'admin', '$2a$10$Z2XvRhbC0LdTpvdA5M3bVOzIy33PCL6ZdxqyKfGyJO2GMN8j7jqSe', '超级管理员', 'admin@jade.local', 1, 1, false)
+ON CONFLICT (username) DO NOTHING;
+SELECT setval('sys_user_id_seq', GREATEST(1, (SELECT COALESCE(MAX(id), 0) FROM sys_user)));
+
 -- 1. 角色
 INSERT INTO sys_role (id, tenant_id, role_name, role_code, role_sort, data_scope, status, remark, created_by)
 VALUES

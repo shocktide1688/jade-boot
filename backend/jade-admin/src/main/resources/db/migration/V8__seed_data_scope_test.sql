@@ -13,16 +13,15 @@ DELETE FROM sys_user_dept WHERE user_id IN (SELECT id FROM sys_user WHERE userna
 DELETE FROM sys_user WHERE username LIKE 'testuser_%';
 
 -- 1. 修复 admin/user/tenant 的部门关联
-DELETE FROM sys_user_dept WHERE user_id IN (1, 5, 6);
+-- 关键: 用 username 不用 user_id, 因为 V8 段 2 还没跑 (alice/bob/charlie/dave 还没创建)
+-- 如果用 id=5/6 假设是 user/tenant, 但 V8 段 2 跑后 5/6 是 bob/charlie, 会错位
+DELETE FROM sys_user_dept WHERE user_id IN (SELECT id FROM sys_user WHERE username IN ('admin', 'user', 'tenant'));
 INSERT INTO sys_user_dept (user_id, dept_id, is_primary)
-SELECT 1, 2, true
-WHERE NOT EXISTS (SELECT 1 FROM sys_user_dept WHERE user_id = 1 AND is_primary = true);
+SELECT u.id, 2, true FROM sys_user u WHERE u.username = 'admin'
+  AND NOT EXISTS (SELECT 1 FROM sys_user_dept WHERE user_id = u.id AND is_primary = true);
 INSERT INTO sys_user_dept (user_id, dept_id, is_primary)
-SELECT 5, 4, true
-WHERE NOT EXISTS (SELECT 1 FROM sys_user_dept WHERE user_id = 5 AND is_primary = true);
-INSERT INTO sys_user_dept (user_id, dept_id, is_primary)
-SELECT 6, 4, true
-WHERE NOT EXISTS (SELECT 1 FROM sys_user_dept WHERE user_id = 6 AND is_primary = true);
+SELECT u.id, 4, true FROM sys_user u WHERE u.username IN ('user', 'tenant')
+  AND NOT EXISTS (SELECT 1 FROM sys_user_dept WHERE user_id = u.id AND is_primary = true);
 
 -- 2. 业务用户: alice / bob / charlie / dave (全部密码 admin123)
 -- 用 WHERE NOT EXISTS 保持幂等
