@@ -1,30 +1,53 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import request from '@/utils/request'
+import {
+  House, Expand, Fold, UserFilled, User, Menu, OfficeBuilding, Reading,
+  Document, Key, Refresh, SwitchButton,
+} from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
 const appStore = useAppStore()
 const router = useRouter()
+const menus = ref<any[]>([])
 
-const menus = [
-  { path: '/dashboard', title: '首页', icon: 'House' },
-  { path: '/system/user', title: '用户管理', icon: 'User' },
-]
+// 路径 -> 图标 的映射（后端只返回菜单名，不返回图标映射）
+const ICON_MAP: Record<string, any> = {
+  首页: House, 用户管理: User, 角色管理: UserFilled, 菜单管理: Menu,
+  部门管理: OfficeBuilding, 字典管理: Reading, 操作日志: Document, 登录日志: Key,
+}
+
+async function loadMenus() {
+  try {
+    const res = await request({ url: '/api/v1/menus/router', method: 'GET' })
+    menus.value = res.data.data || []
+  } catch (e) {
+    console.warn('菜单加载失败，用 fallback', e)
+    menus.value = []
+  }
+}
+
+onMounted(loadMenus)
 
 const activeMenu = computed(() => router.currentRoute.value.path)
 
-async function handleLogout() {
-  await userStore.logout()
-  router.push('/login')
+async function handleCommand(cmd: string) {
+  if (cmd === 'logout') {
+    await userStore.logout()
+    router.push('/login')
+  } else if (cmd === 'profile') {
+    router.push('/profile')
+  }
 }
 </script>
 
 <template>
   <el-container class="layout">
     <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="aside">
-      <div class="logo">
+      <div class="logo" @click="router.push('/dashboard')">
         <span v-if="!appStore.sidebarCollapsed">Jade Platform</span>
         <span v-else>玉</span>
       </div>
@@ -36,10 +59,22 @@ async function handleLogout() {
         text-color="#fff"
         active-text-color="#00a86b"
       >
-        <el-menu-item v-for="m in menus" :key="m.path" :index="m.path">
-          <el-icon><component :is="m.icon" /></el-icon>
-          <template #title>{{ m.title }}</template>
-        </el-menu-item>
+        <template v-for="m in menus" :key="m.path || m.name">
+          <el-sub-menu v-if="m.children && m.children.length" :index="m.path || m.name">
+            <template #title>
+              <el-icon><component :is="ICON_MAP[m.name] || Menu" /></el-icon>
+              <span>{{ m.name }}</span>
+            </template>
+            <el-menu-item v-for="c in m.children" :key="c.path" :index="c.path">
+              <el-icon><component :is="ICON_MAP[c.name] || Menu" /></el-icon>
+              <template #title>{{ c.name }}</template>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item v-else-if="m.path" :index="m.path">
+            <el-icon><component :is="ICON_MAP[m.name] || Menu" /></el-icon>
+            <template #title>{{ m.name }}</template>
+          </el-menu-item>
+        </template>
       </el-menu>
     </el-aside>
 
@@ -48,15 +83,23 @@ async function handleLogout() {
         <el-button text @click="appStore.toggleSidebar">
           <el-icon><Expand v-if="appStore.sidebarCollapsed" /><Fold v-else /></el-icon>
         </el-button>
-        <div class="user-area">
-          <el-dropdown @command="handleLogout">
+        <div class="header-right">
+          <el-tooltip content="刷新菜单" placement="bottom">
+            <el-button text @click="loadMenus"><el-icon><Refresh /></el-icon></el-button>
+          </el-tooltip>
+          <el-dropdown @command="handleCommand" trigger="click">
             <span class="user-name">
               <el-icon><UserFilled /></el-icon>
-              {{ userStore.username }}
+              {{ userStore.username || '未登录' }}
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon> 个人中心
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  <el-icon><SwitchButton /></el-icon> 退出登录
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -72,21 +115,25 @@ async function handleLogout() {
 
 <style scoped>
 .layout { height: 100vh; }
-.aside { background: #001529; transition: width 0.2s; }
+.aside { background: #001529; transition: width 0.2s; overflow-x: hidden; }
 .logo {
   height: 60px; line-height: 60px; color: #fff; text-align: center;
-  font-size: 18px; font-weight: bold; letter-spacing: 2px;
+  font-size: 18px; font-weight: bold; letter-spacing: 2px; cursor: pointer;
 }
 .logo span { color: #00a86b; }
 .aside :deep(.el-menu) { border-right: none; }
+.aside :deep(.el-sub-menu__title:hover),
+.aside :deep(.el-menu-item:hover) { background: #002140 !important; }
 .header {
   display: flex; align-items: center; justify-content: space-between;
   background: #fff; border-bottom: 1px solid #e6e6e6; padding: 0 16px;
+  height: 56px;
 }
-.user-area { display: flex; align-items: center; }
+.header-right { display: flex; align-items: center; gap: 8px; }
 .user-name {
   display: flex; align-items: center; gap: 6px; cursor: pointer;
-  color: #303133;
+  color: #303133; padding: 4px 8px; border-radius: 4px;
 }
+.user-name:hover { background: #f5f7fa; }
 .main { background: #f5f7fa; padding: 16px; }
 </style>

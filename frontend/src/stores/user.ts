@@ -50,6 +50,10 @@ export const useUserStore = defineStore(
       removeToken()
     }
 
+    function setUser(u: any) {
+      userInfo.value = u
+    }
+
     return {
       accessToken,
       userInfo,
@@ -57,6 +61,7 @@ export const useUserStore = defineStore(
       username,
       login,
       logout,
+      setUser,
     }
   },
   {

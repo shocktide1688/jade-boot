@@ -63,6 +63,20 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/monitor/loginlog.vue'),
         meta: { title: '登录日志', icon: 'Key' },
       },
+      // ===== 个人中心 =====
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/pages/profile/index.vue'),
+        meta: { title: '个人中心', icon: 'UserFilled', hidden: true },
+      },
+      // ===== 平台演示 =====
+      {
+        path: 'demo/platform',
+        name: 'DemoPlatform',
+        component: () => import('@/pages/demo/platform.vue'),
+        meta: { title: '平台能力展示', icon: 'MagicStick' },
+      },
     ],
   },
   {
