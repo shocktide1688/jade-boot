@@ -21,6 +21,7 @@
         <module>jade-oss</module>
         <module>jade-codegen</module>
         <module>jade-spring-bridge</module>
+        <module>jade-admin</module>
         <module>jade-demo</module>
     </modules>
 
