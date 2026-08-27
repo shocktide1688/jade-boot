@@ -6,6 +6,7 @@ import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import jakarta.persistence.Convert;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
@@ -16,6 +17,7 @@ import java.time.OffsetDateTime;
  * 身份证、手机号字段在 DB 里是密文，API 返回明文
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "sys_patient")
 public class SysPatient extends PanacheEntityBase {

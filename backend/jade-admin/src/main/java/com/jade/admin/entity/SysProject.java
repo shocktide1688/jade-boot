@@ -4,6 +4,7 @@ import com.jade.security.annotation.TenantId;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
@@ -12,6 +13,7 @@ import java.time.OffsetDateTime;
  * 项目实体（演示多租户隔离）
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "sys_project")
 public class SysProject extends PanacheEntityBase {
