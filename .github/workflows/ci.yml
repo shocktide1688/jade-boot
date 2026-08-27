@@ -50,22 +50,17 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          # 主库 (demo 模块用)
           POSTGRES_DB: jade_demo
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-        # 挂 init script (用 ${{ github.workspace }} 绝对路径, 之前相对路径在 service container CWD 解析不到)
-        # init script 创 jade_admin + jade (admin 跟兼容库)
+        # 挂 init script: 创建 jade_admin + jade 业务库
+        # 用 ${{ github.workspace }} 绝对路径 (相对路径在 service container CWD 解析不到)
         volumes:
           - ${{ github.workspace }}/docker/postgres-initdb.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
         ports:
           - 5432:5432
-        # 用 healthcheck 等 init 完 + 端口 listen (之前去掉是因为 pg_isready 太早跑; 这次 pg_isready 跟 jade_demo 都 ready 了再走)
-        options: >-
-          --health-cmd "pg_isready -U postgres -d jade_demo"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+        # 不加 healthcheck — GitHub Actions 默认会等服务端口 listen
+        # (pg_isready 跟 init 顺序有 race, 之前坑过好几次)
       redis:
         image: redis:7-alpine
         ports:
