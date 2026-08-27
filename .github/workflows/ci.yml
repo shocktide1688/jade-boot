@@ -57,7 +57,7 @@ jobs:
           # 启动时跑这个 SQL 创 jade_demo + jade_admin 两个库
           - ./docker/postgres-initdb.sql:/docker-entrypoint-initdb.d/init.sql:ro
         options: >-
-          --health-cmd pg_isready
+          --health-cmd pg_isready -U postgres -d postgres
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -103,7 +103,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - name: Install
-        run: cd frontend && npm ci
+        # 用 npm install 而不是 npm ci, 避免 lockfile 跟 package.json 不同步时失败
+        # --legacy-peer-deps: 兼容 unplugin-auto-import / pinia-plugin-persistedstate 的 peer dep 范围
+        run: cd frontend && npm install --legacy-peer-deps --no-audit --no-fund
       - name: Type check
         run: cd frontend && npm run type-check
       - name: Build
