@@ -100,4 +100,15 @@ const router = createRouter({
 
 setupGuards(router)
 
+/** 收集所有已注册路由的完整路径（用于过滤后端菜单里没实现的） */
+export const REGISTERED_PATHS = new Set<string>(['/dashboard', '/login'])
+function collectPaths(rs: RouteRecordRaw[], prefix = '') {
+  for (const r of rs) {
+    const p = (prefix + '/' + (r.path || '')).replace('//', '/')
+    if (p && p !== '/') REGISTERED_PATHS.add(p)
+    if (r.children?.length) collectPaths(r.children, p)
+  }
+}
+collectPaths(routes)
+
 export default router

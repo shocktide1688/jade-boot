@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { REGISTERED_PATHS } from '@/router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import request from '@/utils/request'
@@ -25,11 +26,38 @@ const ICON_MAP: Record<string, any> = {
 async function loadMenus() {
   try {
     const res = await request({ url: '/api/v1/menus/router', method: 'GET' })
-    menus.value = res.data.data || []
+    // 1. 补全父路径 (path 是相对的, Element Plus router 模式需要完整路径)
+    // 2. 过滤掉前端没实现路由的菜单 (不然点过去 404)
+    const raw = (res.data.data || []) as any[]
+    const withPaths = buildFullPaths(raw, '')
+    menus.value = filterUnregistered(withPaths)
   } catch (e) {
     console.warn('菜单加载失败，用 fallback', e)
     menus.value = []
   }
+}
+
+function buildFullPaths(items: any[], parentPath: string): any[] {
+  return items.map((it) => {
+    const fullPath = parentPath ? `${parentPath}/${it.path}` : `/${it.path}`
+    const children = it.children ? buildFullPaths(it.children, fullPath) : undefined
+    return { ...it, path: fullPath, children }
+  })
+}
+
+/** 递归剔除没注册路由的菜单 (含子菜单都过滤掉) */
+function filterUnregistered(items: any[]): any[] {
+  return items
+    .map((it) => ({
+      ...it,
+      children: it.children ? filterUnregistered(it.children) : undefined,
+    }))
+    .filter((it) => {
+      // 有子菜单的父菜单: 至少有一个子菜单留下来了
+      if (it.children && it.children.length > 0) return true
+      // 叶子菜单: 路径必须在路由表里
+      return REGISTERED_PATHS.has(it.path)
+    })
 }
 
 onMounted(loadMenus)
