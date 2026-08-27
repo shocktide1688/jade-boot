@@ -1,7 +1,9 @@
 name: CI
 
 permissions:
-  contents: read
+  contents: write  # 需要: Post mvn log to commit on failure (create commit comment)
+  pull-requests: write  # 备用
+  packages: write  # 推镜像到 ghcr.io
 
 on:
   push:
