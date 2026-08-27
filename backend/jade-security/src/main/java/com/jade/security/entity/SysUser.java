@@ -30,7 +30,7 @@ public class SysUser extends PanacheEntityBase {
     @Column(nullable = false, unique = true, length = 64)
     public String username;
 
-    @Column(nullable = false, length = 128)
+    @Column(nullable = false, length = 128, updatable = false)
     public String password;
 
     @Column(length = 64)

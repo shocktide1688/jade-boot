@@ -12,10 +12,16 @@ public class SysRoleMenuRepository {
     @Inject
     EntityManager em;
 
+    /**
+     * 用 native SQL 查 sys_role.menu_id, 因为 sys_role_menu 是连接表,
+     * 没建对应的 JPA 实体（避免 join 表的额外 JPA 维护成本）
+     */
     public List<Long> listMenuIdsByRoleId(Long roleId) {
-        return em.createQuery("SELECT rm.menuId FROM SysRoleMenu rm WHERE rm.roleId = :rid", Long.class)
-                .setParameter("rid", roleId)
+        @SuppressWarnings("unchecked")
+        List<Number> raw = em.createNativeQuery("SELECT menu_id FROM sys_role_menu WHERE role_id = ?1 ORDER BY menu_id")
+                .setParameter(1, roleId)
                 .getResultList();
+        return raw.stream().map(Number::longValue).toList();
     }
 
     public void deleteByRoleId(Long roleId) {

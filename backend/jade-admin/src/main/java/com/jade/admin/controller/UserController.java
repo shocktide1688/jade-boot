@@ -41,6 +41,7 @@ public class UserController {
     @GET
     @Path("/page")
     @Operation(summary = "分页查询用户")
+    @Transactional
     public R<PageResult<SysUser>> page(
             @QueryParam("page") @DefaultValue("1") int page,
             @QueryParam("size") @DefaultValue("10") int size,
@@ -57,8 +58,13 @@ public class UserController {
         long total = q.count();
         List<SysUser> records = q.page(Page.of(page - 1, size)).list();
 
-        // 隐藏 password 字段
-        records.forEach(u -> u.password = null);
+        // 隐藏 password（先 flush，再 set null）
+        if (!records.isEmpty()) {
+            userRepository.getEntityManager().flush();
+            for (SysUser u : records) {
+                u.password = null;
+            }
+        }
 
         return R.ok(PageResult.of(records, total, page, size));
     }
@@ -66,12 +72,15 @@ public class UserController {
     @GET
     @Path("/{id}")
     @Operation(summary = "根据 ID 查询用户")
+    @Transactional
     public R<SysUser> getById(@PathParam("id") Long id) {
         SysUser user = userRepository.findById(id);
         if (user == null) {
             return R.fail(404, "用户不存在");
         }
-        user.password = null;  // 不返回密码
+        // flush 后清 password, 避免写回 DB
+        userRepository.getEntityManager().flush();
+        user.password = null;
         return R.ok(user);
     }
 
@@ -80,6 +89,15 @@ public class UserController {
     @Log(title = "用户管理", businessType = 1)
     @Operation(summary = "创建用户")
     public R<SysUser> create(@Valid UserRequest req) {
+        if (req == null) {
+            throw new BizException(ResultCode.BAD_REQUEST, "请求体为空");
+        }
+        if (req.username == null || req.username.isBlank()) {
+            throw new BizException(ResultCode.BAD_REQUEST, "用户名不能为空");
+        }
+        if (req.password == null) {
+            throw new BizException(ResultCode.BAD_REQUEST, "密码不能为空");
+        }
         if (userRepository.findByUsername(req.username).isPresent()) {
             throw new BizException(ResultCode.BAD_REQUEST, "用户名已存在");
         }
@@ -92,6 +110,7 @@ public class UserController {
         user.status = req.status != null ? req.status : 1;
         user.tenantId = req.tenantId;
         userRepository.persist(user);
+        userRepository.getEntityManager().flush();
         user.password = null;
         return R.ok(user);
     }
@@ -111,7 +130,8 @@ public class UserController {
         if (req.phone != null) user.phone = req.phone;
         if (req.status != null) user.status = req.status;
         if (req.tenantId != null) user.tenantId = req.tenantId;
-        userRepository.persist(user);
+        // 强制 flush UPDATE 写盘, 再清 password 避免写回
+        userRepository.getEntityManager().flush();
         user.password = null;
         return R.ok(user);
     }
