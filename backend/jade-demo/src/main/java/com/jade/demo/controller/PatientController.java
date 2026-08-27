@@ -1,9 +1,9 @@
 package com.jade.demo.controller;
 
 import com.jade.common.api.R;
-import com.jade.demo.entity.SysPatient;
-import com.jade.demo.metrics.BusinessMetrics;
-import com.jade.demo.repository.SysPatientRepository;
+import com.jade.admin.entity.SysPatient;
+import com.jade.admin.metrics.BusinessMetrics;
+import com.jade.admin.repository.SysPatientRepository;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;

@@ -10,12 +10,16 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>jade-demo</artifactId>
-    <name>Jade Demo</name>
-    <description>Jade 演示项目（活文档）</description>
+    <artifactId>jade-admin</artifactId>
+    <name>Jade Admin</name>
+    <description>Jade 管理后台：用户/角色/权限/菜单/部门/字典/日志/任务/OSS（生产业务模块）</description>
 
     <dependencies>
-        <!-- Jade 全家桶 -->
+        <!-- 平台核心 -->
+        <dependency>
+            <groupId>com.jade</groupId>
+            <artifactId>jade-common</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.jade</groupId>
             <artifactId>jade-web</artifactId>
@@ -34,11 +38,18 @@
         </dependency>
         <dependency>
             <groupId>com.jade</groupId>
-            <artifactId>jade-admin</artifactId>
-            <version>${jade.version}</version>
+            <artifactId>jade-oss</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jade</groupId>
+            <artifactId>jade-codegen</artifactId>
         </dependency>
 
-        <!-- Quarkus -->
+        <!-- Quarkus 扩展 -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
@@ -49,7 +60,7 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jdbc-postgresql</artifactId>
+            <artifactId>quarkus-hibernate-validator</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -57,23 +68,19 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-openapi</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-smallrye-health</artifactId>
+            <artifactId>quarkus-scheduler</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-config-yaml</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-arc</artifactId>
         </dependency>
 
         <!-- 工具 -->
@@ -81,15 +88,13 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
-
-        <!-- BCrypt 密码哈希 -->
         <dependency>
             <groupId>at.favre.lib</groupId>
             <artifactId>bcrypt</artifactId>
             <version>0.10.2</version>
         </dependency>
 
-        <!-- 测试 -->
+        <!-- Test -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit5</artifactId>
@@ -104,17 +109,19 @@
 
     <build>
         <plugins>
+            <!--
+              jade-admin 是库模块，不应该运行 quarkus:build（会生成 runner）
+              只通过 jandex-maven-plugin 提供 CDI bean index，让引用方（demo）能找到 bean
+            -->
             <plugin>
-                <groupId>${quarkus.platform.group-id}</groupId>
-                <artifactId>quarkus-maven-plugin</artifactId>
-                <version>${quarkus.platform.version}</version>
-                <extensions>true</extensions>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>3.2.2</version>
                 <executions>
                     <execution>
+                        <id>make-index</id>
                         <goals>
-                            <goal>build</goal>
-                            <goal>generate-code</goal>
-                            <goal>generate-code-tests</goal>
+                            <goal>jandex</goal>
                         </goals>
                     </execution>
                 </executions>

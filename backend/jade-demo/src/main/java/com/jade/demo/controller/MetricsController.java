@@ -1,10 +1,10 @@
 package com.jade.demo.controller;
 
 import com.jade.common.api.R;
-import com.jade.demo.repository.SysPatientRepository;
-import com.jade.demo.repository.SysProjectRepository;
-import com.jade.demo.repository.SysTenantRepository;
-import com.jade.demo.repository.SysUserRepository;
+import com.jade.admin.repository.SysPatientRepository;
+import com.jade.admin.repository.SysProjectRepository;
+import com.jade.web.repository.SysTenantRepository;
+import com.jade.security.repository.SysUserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.search.Search;
 import jakarta.annotation.security.PermitAll;

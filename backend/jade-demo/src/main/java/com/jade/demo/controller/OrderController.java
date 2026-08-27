@@ -3,7 +3,7 @@ package com.jade.demo.controller;
 import com.jade.common.api.R;
 import com.jade.demo.dto.CreateOrderRequest;
 import com.jade.demo.dto.OrderResponse;
-import com.jade.demo.metrics.BusinessMetrics;
+import com.jade.admin.metrics.BusinessMetrics;
 import com.jade.redis.annotation.Idempotent;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.security.PermitAll;
