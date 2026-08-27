@@ -50,6 +50,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/system/dict.vue'),
         meta: { title: '字典管理', icon: 'Reading' },
       },
+      {
+        path: 'system/notice',
+        name: 'SystemNotice',
+        component: () => import('@/pages/system/notice.vue'),
+        meta: { title: '通知公告', icon: 'Bell' },
+      },
       // ===== 系统监控 =====
       {
         path: 'monitor/operlog',

@@ -1,23 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import request from '@/utils/request'
 import {
   House, Expand, Fold, UserFilled, User, Menu, OfficeBuilding, Reading,
-  Document, Key, Refresh, SwitchButton,
+  Document, Key, Refresh, SwitchButton, Bell,
 } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
 const appStore = useAppStore()
 const router = useRouter()
+const route = useRoute()
 const menus = ref<any[]>([])
 
-// 路径 -> 图标 的映射（后端只返回菜单名，不返回图标映射）
+// 路径 -> 图标 的映射
 const ICON_MAP: Record<string, any> = {
   首页: House, 用户管理: User, 角色管理: UserFilled, 菜单管理: Menu,
   部门管理: OfficeBuilding, 字典管理: Reading, 操作日志: Document, 登录日志: Key,
+  通知公告: Bell,
 }
 
 async function loadMenus() {
@@ -33,6 +35,19 @@ async function loadMenus() {
 onMounted(loadMenus)
 
 const activeMenu = computed(() => router.currentRoute.value.path)
+
+// 面包屑：从当前路由的 matched 数组构造
+interface Crumb { name: string; path: string }
+const breadcrumbs = computed<Crumb[]>(() => {
+  const crumbs: Crumb[] = []
+  for (const m of route.matched) {
+    const title = (m.meta?.title as string)
+    if (title && !m.meta?.hidden) {
+      crumbs.push({ name: title, path: m.path })
+    }
+  }
+  return crumbs
+})
 
 async function handleCommand(cmd: string) {
   if (cmd === 'logout') {
@@ -107,6 +122,12 @@ async function handleCommand(cmd: string) {
       </el-header>
 
       <el-main class="main">
+        <el-breadcrumb v-if="breadcrumbs.length > 1" separator="/" class="breadcrumb">
+          <el-breadcrumb-item v-for="(c, i) in breadcrumbs" :key="c.path">
+            <router-link v-if="i < breadcrumbs.length - 1" :to="c.path">{{ c.name }}</router-link>
+            <span v-else>{{ c.name }}</span>
+          </el-breadcrumb-item>
+        </el-breadcrumb>
         <router-view />
       </el-main>
     </el-container>
@@ -136,4 +157,5 @@ async function handleCommand(cmd: string) {
 }
 .user-name:hover { background: #f5f7fa; }
 .main { background: #f5f7fa; padding: 16px; }
+.breadcrumb { padding: 0 0 12px 0; font-size: 13px; }
 </style>
