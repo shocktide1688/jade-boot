@@ -117,14 +117,27 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v5
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          # docker-container snapshotter 加速 native build (支持 mount)
+          # 默认 driver 是 docker, 不支持 mount, GraalVM 会失败
+          driver-opts: image=moby/buildkit:latest
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract Docker metadata
-        id: meta
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-
+      # ============ Backend: Native Image (主推) ============
+      - name: Extract native image metadata
+        id: meta-native
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/shocktide1688/jade-demo
@@ -133,7 +146,8 @@ jobs:
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push backend (native) image
+            type=raw,value=latest-native,enable={{is_default_branch}}
+      - name: Build and push NATIVE image
         # 单边改动也跑: backend 改了 OR tag
         if: needs.changes.outputs.backend == 'true' || startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v6
@@ -141,8 +155,34 @@ jobs:
           context: backend
           file: backend/jade-demo/Dockerfile.native
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-native.outputs.tags }}
+          labels: ${{ steps.meta-native.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      # ============ Backend: JVM Image (兼容) ============
+      - name: Extract JVM image metadata
+        id: meta-jvm
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/shocktide1688/jade-demo-jvm
+          tags: |
+            type=ref,event=branch,suffix=-jvm
+            type=ref,event=tag,suffix=-jvm
+            type=sha,suffix=-jvm
+            type=raw,value=latest-jvm,enable={{is_default_branch}}
+      - name: Build and push JVM image
+        # 单边改动也跑: backend 改了 OR tag
+        if: needs.changes.outputs.backend == 'true' || startsWith(github.ref, 'refs/tags/v')
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/jade-demo/Dockerfile
+          push: true
+          tags: ${{ steps.meta-jvm.outputs.tags }}
+          labels: ${{ steps.meta-jvm.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      # ============ Frontend ============
       - name: Extract frontend Docker metadata
         id: frontend-meta
         uses: docker/metadata-action@v5
@@ -163,6 +203,12 @@ jobs:
           push: true
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   release:
     needs: publish
