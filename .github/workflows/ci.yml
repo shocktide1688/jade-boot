@@ -39,16 +39,23 @@ jobs:
       }}
     runs-on: ubuntu-latest
     env:
-      DB_URL: jdbc:postgresql://localhost:5432/jade_test
+      # demo 模块的 DB (生产用 jade, CI 也用 jade 让 demo 测试一致)
+      DB_URL: jdbc:postgresql://localhost:5432/jade_demo
+      # admin 模块的 DB (跟 demo 完全独立)
+      TEST_DB_URL: jdbc:postgresql://localhost:5432/jade_admin
       QUARKUS_REDIS_HOSTS: redis://localhost:6379
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: jade_test
+          # 默认 DB 必须是 postgres, 用 init script 创建两个业务 DB
+          POSTGRES_DB: postgres
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
+        volumes:
+          # 启动时跑这个 SQL 创 jade_demo + jade_admin 两个库
+          - ./docker/postgres-initdb.sql:/docker-entrypoint-initdb.d/init.sql:ro
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
