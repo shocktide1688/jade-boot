@@ -48,16 +48,15 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          # 默认 DB 必须是 postgres, 用 init script 创建两个业务 DB
-          POSTGRES_DB: postgres
+          # POSTGRES_MULTIPLE_DATABASES 让 postgres 镜像自动创多个 DB (替代 init script)
+          # 比挂 volume 跑 init script 更稳, 不依赖 service container CWD
+          POSTGRES_DB: jade_demo
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          POSTGRES_MULTIPLE_DATABASES: jade_admin,jade
         ports: ['5432:5432']
-        volumes:
-          # 启动时跑这个 SQL 创 jade_demo + jade_admin 两个库
-          - ./docker/postgres-initdb.sql:/docker-entrypoint-initdb.d/init.sql:ro
         options: >-
-          --health-cmd pg_isready -U postgres -d postgres
+          --health-cmd pg_isready -U postgres -d jade_demo
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
