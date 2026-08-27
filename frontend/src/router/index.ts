@@ -19,11 +19,49 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/dashboard/index.vue'),
         meta: { title: '首页', icon: 'House' },
       },
+      // ===== 系统管理 =====
       {
         path: 'system/user',
         name: 'SystemUser',
         component: () => import('@/pages/system/user.vue'),
         meta: { title: '用户管理', icon: 'User' },
+      },
+      {
+        path: 'system/role',
+        name: 'SystemRole',
+        component: () => import('@/pages/system/role.vue'),
+        meta: { title: '角色管理', icon: 'UserFilled' },
+      },
+      {
+        path: 'system/menu',
+        name: 'SystemMenu',
+        component: () => import('@/pages/system/menu.vue'),
+        meta: { title: '菜单管理', icon: 'Menu' },
+      },
+      {
+        path: 'system/dept',
+        name: 'SystemDept',
+        component: () => import('@/pages/system/dept.vue'),
+        meta: { title: '部门管理', icon: 'OfficeBuilding' },
+      },
+      {
+        path: 'system/dict',
+        name: 'SystemDict',
+        component: () => import('@/pages/system/dict.vue'),
+        meta: { title: '字典管理', icon: 'Reading' },
+      },
+      // ===== 系统监控 =====
+      {
+        path: 'monitor/operlog',
+        name: 'MonitorOperLog',
+        component: () => import('@/pages/monitor/operlog.vue'),
+        meta: { title: '操作日志', icon: 'Document' },
+      },
+      {
+        path: 'monitor/loginlog',
+        name: 'MonitorLoginLog',
+        component: () => import('@/pages/monitor/loginlog.vue'),
+        meta: { title: '登录日志', icon: 'Key' },
       },
     ],
   },
