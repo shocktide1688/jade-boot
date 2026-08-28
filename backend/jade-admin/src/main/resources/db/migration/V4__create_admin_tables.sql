@@ -238,3 +238,4 @@ CREATE TABLE sys_config (
     UNIQUE (config_key, deleted)
 );
 COMMENT ON TABLE sys_config IS '参数配置';
+
