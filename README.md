@@ -11,8 +11,8 @@ Jade 是面向企业级 Java 应用的**全栈开发底座**，采用前后端�
 - 🎨 **统一规范**：统一响应 `R<T>` / 全局异常 / OpenAPI 自动生成前端 SDK
 - 🔐 **注解式**：分布式锁 `@RedisLock` / 操作日志 `@Log` / 字段加密 `@Encrypted`
 - 📊 **生产级监控**：Prometheus + Grafana 25-panel 业务仪表板
-- 🐳 **容器化**：docker-compose 一键起 PG + Redis + Prometheus + Grafana
-- 🧪 **测试完备**：69 个测试用例 (4 security + 39 redis + 4 auth + 8 data-scope + 6 role + 8 user)
+- 🐳 **容器化**：docker-compose 一键起 jade-admin + jade-demo + frontend + PG + Redis + Prometheus + Grafana
+- 🧪 **测试完备**：admin 26 + redis 39 + demo 4 + data-scope 8 = 77 测试用例
 
 ## 📁 目录结构
 
@@ -128,9 +128,9 @@ make fe-dev
 **12 模块 Monorepo** — 共享 BOMS + 按需引用：
 
 ```
-jade-demo (runnable, 唯一部署单元)
-  ├─ jade-admin (RBAC + 系统管理)
-  ├─ jade-security (JWT + 加密 + 多租户)
+jade-admin   ─┐   都可独立启动 (各自连各自 DB)
+jade-demo    ─┘   共用底层库
+  ├─ jade-security (JWT + 加密 + 多租户 + data-scope)
   ├─ jade-common (R/PageResult/异常)
   ├─ jade-web (CORS + 启动指标)
   ├─ jade-log (@OperateLog 注解)
@@ -139,11 +139,17 @@ jade-demo (runnable, 唯一部署单元)
   └─ jade-dependencies (BOM)
 ```
 
-**16 个 controller** (其中 12 个 admin 业务 + 4 个 demo 业务)：
-- **Admin**: Auth, User, Role, Menu, Dept, Dict, Notice, Log, Oss, Task, Config, Tenant
-- **Demo**: Order, Patient, Inventory, LockDemo, Metrics, Export
+**v0.2.0 架构** — jade-admin 跟 jade-demo 平级:
+- `jade-admin` 跑在 `jade_admin` DB (V4~V8 自包含)
+- `jade-demo` 跑在 `jade_demo` DB (V1~V3 + admin 合并的 controllers)
+- 两个服务共用 Redis 缓存, 可独立扩缩
+- 前端 (5173) 通过 nginx 转发到对应后端
 
-**关键能力**：
+**16 个 controller** (其中 12 个 admin 业务 + 4 个 demo 业务):
+- **Admin** (jade-admin): Auth, User, Role, Menu, Dept, Dict, Notice, Log, Oss, Task, Config, Tenant
+- **Demo** (jade-demo): Order, Patient, Inventory, LockDemo, Metrics, Export
+
+**关键能力**:
 - **JWT (RS256)**: `mp.jwt.verify.issuer` + `jade.jwt.issuer` 双向认证
 - **多租户**: JWT claim 携带 `tenantId` + `TenantFilter` 严格校验
 - **data-scope 数据权限**: ALL/DEPT/DEPT_AND_CHILD/SELF (4 种)
@@ -151,7 +157,7 @@ jade-demo (runnable, 唯一部署单元)
 - **分布式锁**: 8 种实现 (Fair / RW / Reentrant / Semaphore / CountDownLatch / Renewer / Multi-lock)
 - **注解式切面**: `@Log`(操作日志) / `@OperateLog`(系统日志) / `@RedisLock`(分布式锁) / `@Encrypted`(字段加密)
 - **业务指标**: 8 个自定义 Micrometer Counter/Histogram (登录/订单/患者/业务计时)
-- **Flyway**: V1~V8 渐进式迁移 (V8 加入多租户 + data-scope 测试数据)
+- **Flyway**: V1~V8 渐进式迁移 (V4 起 admin 自包含; V8 加入多租户 + data-scope 测试数据)
 
 ### 前端 (Vue 3.5 + Vite 7 + Element Plus 2.14)
 
@@ -166,12 +172,24 @@ jade-demo (runnable, 唯一部署单元)
 
 ### 基础设施 (Docker Compose)
 
+`docker-compose.yml` 一键起 7 个服务:
+
 | 容器 | 端口 | 镜像 | 用途 |
 |---|---|---|---|
-| jade-postgres | 5432 | postgres:16-alpine | 主库 (10 + 11 张表) |
+| jade-postgres | 5432 | postgres:16-alpine | 主库 (jade_demo + jade_admin + jade + jade_test 多 DB) |
 | jade-redis | 6380 | redis:7-alpine | 分布式锁 + 缓存 + 幂等 |
-| jade-prometheus | 9090 | prom/prometheus:v2.55 | 抓 `/q/metrics` (200h 留存) |
-| jade-grafana | 3001 | grafana:11.4 | 25-panel 业务仪表板 |
+| **jade-admin** | **8081** | ghcr.io/shocktide1688/jade-admin | 管理后台 (v0.2.0 平级部署) |
+| **jade-demo** | **8080** | ghcr.io/shocktide1688/jade-demo | 业务演示服务 |
+| jade-frontend | 5173 | ghcr.io/shocktide1688/jade-frontend | Vue 前端 |
+| jade-prometheus | 9090 | prom/prometheus:v2.55 | 抓 jade-admin + jade-demo `/q/metrics` (200h 留存) |
+| jade-grafana | 3001 | grafana:11.4 | 25-panel 业务仪表板 (admin/admin) |
+
+一键命令:
+```bash
+docker compose up -d
+open http://localhost:5173  # 前端
+open http://localhost:3001  # Grafana
+```
 
 ---
 
