@@ -15,13 +15,12 @@ quarkus:
   datasource:
     db-kind: postgresql
     # jade-admin 用独立 DB jade_admin (跟 demo 的 jade_demo 完全隔离)
-    # 启动时必须设 DB_URL (prod) 或 TEST_DB_URL (test), 没 fallback, fail-fast
     username: "${DB_USERNAME:postgres}"
     password: "${DB_PASSWORD:postgres}"
     jdbc:
-      # 不在 main yml 里给默认, 让 application.properties (test) 跟 prod env var 各自决定
-      # prod: 启动 docker 时传 DB_URL
-      # test: test 资源里设 TEST_DB_URL
+      # prod: 启动时传 DB_URL
+      # test: application.properties 用 TEST_DB_URL 覆盖 (key 一样, test 资源优先)
+      url: "${DB_URL:jdbc:postgresql://localhost:5432/jade_admin?currentSchema=public}"
       max-size: 20
       min-size: 2
     devservices:
