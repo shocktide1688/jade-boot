@@ -52,6 +52,14 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-config-yaml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
         <dependency>
@@ -120,9 +128,26 @@
     <build>
         <plugins>
             <!--
-              jade-admin 是库模块，不应该运行 quarkus:build（会生成 runner）
-              只通过 jandex-maven-plugin 提供 CDI bean index，让引用方（demo）能找到 bean
+              jade-admin 现在是可独立启动的应用（跟 jade-demo 平级）
+              - quarkus-maven-plugin 生成可执行 runner
+              - V4~V8 迁移自包含, 不依赖 demo 的 V1~V3
+              - 仍保留 jandex-maven-plugin, 让被引用时也能注册 CDI bean
             -->
+            <plugin>
+                <groupId>${quarkus.platform.group-id}</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>generate-code</goal>
+                            <goal>generate-code-tests</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>io.smallrye</groupId>
                 <artifactId>jandex-maven-plugin</artifactId>
