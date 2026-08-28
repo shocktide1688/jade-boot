@@ -1,9 +1,8 @@
 name: CI
 
+# 全 workflow 默认最小权限
 permissions:
-  contents: write  # 需要: Post mvn log to commit on failure (create commit comment)
-  pull-requests: write  # 备用
-  packages: write  # 推镜像到 ghcr.io
+  contents: read
 
 on:
   push:
@@ -40,6 +39,9 @@ jobs:
         startsWith(github.ref, 'refs/tags/v')
       }}
     runs-on: ubuntu-latest
+    # 单独给 backend job 加 contents: write, 让 "Post mvn log on failure" 能贴 commit comment
+    permissions:
+      contents: write
     env:
       # demo 模块的 DB (生产用 jade, CI 也用 jade 让 demo 测试一致)
       DB_URL: jdbc:postgresql://localhost:5432/jade_demo
@@ -152,7 +154,10 @@ jobs:
           path: frontend/dist/
 
   publish:
-    needs: [changes, backend, frontend]
+    # 关键修复: 不再 depends on frontend job
+    # 原因: publish 内的 frontend docker build 是从源码 docker build, 不用 frontend job 的 artifact
+    # 之前 frontend 被 paths-filter skip 后, publish 也跟着 skipped (needs 不满足)
+    needs: [changes, backend]
     # publish 整体在 main 或 tag 上跑
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
