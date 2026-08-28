@@ -5,54 +5,12 @@
 -- 多租户：所有表加 tenant_id（系统级数据 tenant_id=NULL）
 -- 软删：deleted BOOLEAN DEFAULT FALSE
 -- =====================================================
--- 自包含设计: jade-admin 跑在独立 DB (jade_admin), 不依赖 demo 的 V1~V3
--- sys_user / sys_tenant 在 admin 自己建 (V4), demo 库的同名表完全无关
+-- 自包含设计: jade-admin 跑在独立 DB (jade_admin)
+-- V1 (basic) + V2 (tenant/patient/project) + V3 (tenant_id column) 已经把基础表建好
+-- V4 只负责: 升级 sys_role / sys_user_role 到 admin 完整版, 加上 admin 独有的表
 -- =====================================================
 
--- 0.1 admin 自己的 sys_user (跟 demo 模块 V1 同 schema, 但完全独立的 DB)
-CREATE TABLE sys_user (
-    id          BIGSERIAL    PRIMARY KEY,
-    username    VARCHAR(64)  NOT NULL UNIQUE,
-    password    VARCHAR(128) NOT NULL,
-    nickname    VARCHAR(64),
-    email       VARCHAR(128),
-    phone       VARCHAR(32),
-    status      SMALLINT     NOT NULL DEFAULT 1,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
-    tenant_id   BIGINT
-);
-COMMENT ON TABLE  sys_user             IS '系统用户表 (admin DB 独立)';
-COMMENT ON COLUMN sys_user.password    IS 'BCrypt 加密后的密码';
-
-CREATE INDEX idx_sys_user_status ON sys_user(status);
-CREATE INDEX idx_sys_user_created ON sys_user(created_at);
-
--- 0.2 admin 自己的 sys_tenant
-CREATE TABLE sys_tenant (
-    id          BIGSERIAL    PRIMARY KEY,
-    code        VARCHAR(64)  NOT NULL UNIQUE,
-    name        VARCHAR(128) NOT NULL,
-    status      SMALLINT     NOT NULL DEFAULT 1,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_sys_tenant_status ON sys_tenant(status);
-COMMENT ON TABLE sys_tenant IS '租户表 (admin DB 独立)';
-
--- 0.3 admin 自己的 sys_project (SysProject 实体需要)
-CREATE TABLE sys_project (
-    id          BIGSERIAL    PRIMARY KEY,
-    tenant_id   BIGINT       NOT NULL,
-    name        VARCHAR(128) NOT NULL,
-    description VARCHAR(512),
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    deleted     BOOLEAN      NOT NULL DEFAULT FALSE
-);
-CREATE INDEX idx_sys_project_tenant ON sys_project(tenant_id);
-COMMENT ON COLUMN sys_project.tenant_id IS '所属租户（多租户隔离字段）';
-
--- 1. 先 drop V1 留下的占位表（sys_role / sys_user_role 是 V1 的简化版）
+-- 1. 先 drop V1 留下的占位表（sys_role / sys_user_role 是 V1 的简化版, V4 升级为完整版）
 DROP TABLE IF EXISTS sys_user_role CASCADE;
 DROP TABLE IF EXISTS sys_role CASCADE;
 
