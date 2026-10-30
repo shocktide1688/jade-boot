@@ -17,6 +17,8 @@
         <module>jade-web</module>
         <module>jade-security</module>
         <module>jade-mcp</module>
+        <module>jade-mail</module>
+        <module>jade-ldap-client</module>
         <module>jade-log</module>
         <module>jade-redis</module>
         <module>jade-oss</module>
@@ -81,6 +83,16 @@
             <dependency>
                 <groupId>com.jade</groupId>
                 <artifactId>jade-mcp</artifactId>
+                <version>${jade.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jade</groupId>
+                <artifactId>jade-mail</artifactId>
+                <version>${jade.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jade</groupId>
+                <artifactId>jade-ldap-client</artifactId>
                 <version>${jade.version}</version>
             </dependency>
             <dependency>

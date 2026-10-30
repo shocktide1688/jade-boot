@@ -47,6 +47,16 @@
                 <artifactId>jade-mcp</artifactId>
                 <version>${jade.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.jade</groupId>
+                <artifactId>jade-mail</artifactId>
+                <version>${jade.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jade</groupId>
+                <artifactId>jade-ldap-client</artifactId>
+                <version>${jade.version}</version>
+            </dependency>
 
             <!-- Jade 内部 starter -->
             <dependency>
