@@ -30,10 +30,24 @@ public class SysRoleMenuRepository {
                 .executeUpdate();
     }
 
+    /**
+     * 幂等插入：先查后插，避免方言差异（PG/SQLite 的 ON CONFLICT 在 MySQL 不存在）
+     */
     public void insert(Long roleId, Long menuId) {
-        em.createNativeQuery("INSERT INTO sys_role_menu (role_id, menu_id) VALUES (?1, ?2) ON CONFLICT DO NOTHING")
+        if (exists(roleId, menuId)) {
+            return;
+        }
+        em.createNativeQuery("INSERT INTO sys_role_menu (role_id, menu_id) VALUES (?1, ?2)")
                 .setParameter(1, roleId)
                 .setParameter(2, menuId)
                 .executeUpdate();
+    }
+
+    public boolean exists(Long roleId, Long menuId) {
+        return !em.createNativeQuery("SELECT 1 FROM sys_role_menu WHERE role_id = ?1 AND menu_id = ?2")
+                .setParameter(1, roleId)
+                .setParameter(2, menuId)
+                .getResultList()
+                .isEmpty();
     }
 }

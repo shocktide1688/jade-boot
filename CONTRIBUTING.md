@@ -69,3 +69,7 @@ git tag -a v1.0.0 -m "Release 1.0.0"
 git push origin v1.0.0
 # 3. GitHub Actions 自动发布到 Maven 仓库
 ```
+
+## 多数据库支持 (v0.3.0+)
+
+底座已支持 postgresql / mysql / sqlite 三库选择性部署：`jade.db.vendor` 属性切换，Flyway 按 `db/migration/<vendor>/` 目录执行。**新增迁移必须三方言各一份**（PG 为 canonical），差异对照表见 jade-wiki 仓库 CONTRIBUTING。业务代码禁止方言专有 SQL（原生 SQL 需三库兼容，幂等插入用"先查后插"而非 `ON CONFLICT`）。

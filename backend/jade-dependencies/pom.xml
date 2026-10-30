@@ -15,8 +15,23 @@
     <name>Jade Dependencies BOM</name>
     <description>Jade 平台依赖清单（业务项目只需 import 此 BOM）</description>
 
+    <properties>
+        <quarkiverse-jdbc.version>3.0.11</quarkiverse-jdbc.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
+            <!-- 多数据库驱动: MySQL(由 quarkus-bom 管理) + SQLite(Quarkiverse) -->
+            <dependency>
+                <groupId>io.quarkiverse.jdbc</groupId>
+                <artifactId>quarkus-jdbc-sqlite</artifactId>
+                <version>${quarkiverse-jdbc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-community-dialects</artifactId>
+            </dependency>
+
             <!-- Jade 内部 starter -->
             <dependency>
                 <groupId>com.jade</groupId>
