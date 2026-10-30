@@ -16,6 +16,7 @@
         <module>jade-common</module>
         <module>jade-web</module>
         <module>jade-security</module>
+        <module>jade-mcp</module>
         <module>jade-log</module>
         <module>jade-redis</module>
         <module>jade-oss</module>
@@ -36,6 +37,7 @@
 
         <!-- 第三方版本 -->
         <quarkus.platform.version>3.39.1</quarkus.platform.version>
+        <quarkiverse-mcp.version>2.0.4</quarkiverse-mcp.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
 
@@ -74,6 +76,11 @@
             <dependency>
                 <groupId>com.jade</groupId>
                 <artifactId>jade-security</artifactId>
+                <version>${jade.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jade</groupId>
+                <artifactId>jade-mcp</artifactId>
                 <version>${jade.version}</version>
             </dependency>
             <dependency>
