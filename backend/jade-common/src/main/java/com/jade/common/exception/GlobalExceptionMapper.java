@@ -37,6 +37,22 @@ public class GlobalExceptionMapper implements ExceptionMapper<Throwable> {
                     .build();
         }
 
+        // 认证/授权异常 (非主动认证下, 过期/无效 token 到达 JAX-RS 层):
+        // 统一返回业务码 1001, 前端据此引导重新登录
+        if (e instanceof jakarta.ws.rs.NotAuthorizedException) {
+            log.warn("[Auth] 401: {}", e.getMessage());
+            return Response.status(RestResponse.StatusCode.UNAUTHORIZED)
+                    .entity(R.fail(ResultCode.UNAUTHORIZED, "登录已过期, 请重新登录"))
+                    .build();
+        }
+
+        if (e instanceof jakarta.ws.rs.ForbiddenException) {
+            log.warn("[Auth] 403: {}", e.getMessage());
+            return Response.status(RestResponse.StatusCode.FORBIDDEN)
+                    .entity(R.fail(ResultCode.FORBIDDEN, "没有权限执行此操作"))
+                    .build();
+        }
+
         if (e instanceof WebApplicationException wae) {
             int status = wae.getResponse().getStatus();
             String msg = wae.getMessage() == null ? "请求错误" : wae.getMessage();

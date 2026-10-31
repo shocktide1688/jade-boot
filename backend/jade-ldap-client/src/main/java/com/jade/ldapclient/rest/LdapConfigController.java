@@ -30,11 +30,11 @@ public class LdapConfigController {
 
     public record LdapConfigView(String ldapUrl, String baseDn, String bindDn,
                                  String bindPasswordMasked, String userSearchFilter,
-                                 Boolean autoCreateUser, Boolean enabled) {}
+                                 Boolean autoCreateUser, Boolean enabled, String roleMappings) {}
 
     public record LdapConfigSave(String ldapUrl, String baseDn, String bindDn,
                                  String bindPassword, String userSearchFilter,
-                                 Boolean autoCreateUser, Boolean enabled) {}
+                                 Boolean autoCreateUser, Boolean enabled, String roleMappings) {}
 
     @Inject
     LdapAuthenticator authenticator;
@@ -47,7 +47,7 @@ public class LdapConfigController {
         LdapConfig c = LdapConfig.singleton();
         String masked = c.bindPassword == null || c.bindPassword.isBlank() ? "" : "******";
         return R.ok(new LdapConfigView(c.ldapUrl, c.baseDn, c.bindDn, masked,
-                c.userSearchFilter, c.autoCreateUser, c.enabled));
+                c.userSearchFilter, c.autoCreateUser, c.enabled, c.roleMappings));
     }
 
     @PUT
@@ -67,9 +67,10 @@ public class LdapConfigController {
                 ? "(uid={0})" : req.userSearchFilter();
         c.autoCreateUser = req.autoCreateUser();
         c.enabled = req.enabled();
+        c.roleMappings = req.roleMappings();
         LdapConfig.persist(c);
         return R.ok(new LdapConfigView(c.ldapUrl, c.baseDn, c.bindDn, "******",
-                c.userSearchFilter, c.autoCreateUser, c.enabled));
+                c.userSearchFilter, c.autoCreateUser, c.enabled, c.roleMappings));
     }
 
     @POST

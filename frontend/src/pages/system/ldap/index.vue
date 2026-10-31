@@ -19,6 +19,13 @@
         <el-form-item label="用户过滤器">
           <el-input v-model="form.userSearchFilter" placeholder="(uid={0}) — {0} 为登录用户名" />
         </el-form-item>
+        <el-form-item label="组→角色映射">
+          <el-input v-model="form.roleMappings" type="textarea" :rows="3"
+                    placeholder='[{"group":"app-admins","role":"admin"}] — 留空不映射' />
+          <div style="font-size:12px;color:#999;margin-top:4px">
+            登录时按用户所属 LDAP 组 (roleOccupant/member) 追加系统角色, 只增不减
+          </div>
+        </el-form-item>
         <el-form-item label="自动创建用户">
           <el-switch v-model="form.autoCreateUser" />
           <span class="hint">首次 LDAP 认证通过后自动创建本地账号</span>
@@ -57,7 +64,7 @@ import { ElMessage } from 'element-plus'
 const form = ref<any>({
   ldapUrl: '', baseDn: '', bindDn: '', bindPassword: '',
   passwordMasked: false, userSearchFilter: '(uid={0})',
-  autoCreateUser: true, enabled: false,
+  autoCreateUser: true, enabled: false, roleMappings: '',
 })
 const saving = ref(false)
 const testing = ref(false)

@@ -22,7 +22,9 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const userStore = useUserStore()
-    if (userStore.accessToken) {
+    // 登录等公开接口不带旧凭据: 过期 token 会被拒绝, 反而阻断登录本身
+    const isPublicAuth = config.url?.startsWith('/api/v1/auth/')
+    if (userStore.accessToken && !isPublicAuth) {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
     }
     return config
@@ -68,7 +70,36 @@ service.interceptors.response.use(
     ElMessage.error(res.message || '请求失败')
     return Promise.reject(new Error(res.message))
   },
-  (error) => {
+  async (error) => {
+    const status = error.response?.status
+    const bizCode = error.response?.data?.code
+
+    // 会话失效: HTTP 401 或业务码 1001/1002 → 统一引导重新登录 (加锁去重, 避免并发请求弹多个框)
+    if (status === 401 || bizCode === 1001 || bizCode === 1002) {
+      if (!(window as any).__reloginPrompting) {
+        ;(window as any).__reloginPrompting = true
+        ElMessageBox.confirm('登录已过期, 请重新登录', '提示', {
+          confirmButtonText: '重新登录',
+          cancelButtonText: '取消',
+          type: 'warning',
+        })
+          .then(() => {
+            const userStore = useUserStore()
+            userStore.logout()
+            router.push('/login')
+          })
+          .finally(() => {
+            ;(window as any).__reloginPrompting = false
+          })
+      }
+      return Promise.reject(new Error('登录已过期'))
+    }
+
+    if (status === 403 || bizCode === 1003) {
+      ElMessage.error('您没有权限执行此操作')
+      return Promise.reject(error)
+    }
+
     const msg = error.response?.data?.message || error.message || '网络异常'
     ElMessage.error(msg)
     return Promise.reject(error)

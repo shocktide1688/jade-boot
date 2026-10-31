@@ -15,6 +15,7 @@ import io.quarkus.arc.InstanceHandle;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
 import java.text.MessageFormat;
@@ -36,6 +37,9 @@ public class LdapAuthenticator {
 
     @Inject
     SysUserRepository userRepository;
+
+    @Inject
+    EntityManager em;
 
     // 自注入代理: 保证 @Transactional 在跨方法调用时生效
     @Inject
@@ -110,6 +114,8 @@ public class LdapAuthenticator {
         LdapConfig cfg = LdapConfig.singleton();
         SysUser existing = userRepository.findByUsername(username).orElse(null);
         if (existing != null) {
+            // 已有本地账号也同步组→角色映射 (只增不减)
+            applyGroupRoleMapping(existing.id, entry, cfg);
             return Optional.of(existing);
         }
         if (!Boolean.TRUE.equals(cfg.autoCreateUser)) {
@@ -125,7 +131,74 @@ public class LdapAuthenticator {
         user.authSource = SOURCE_LDAP;
         user.tenantId = null;
         user.persist();
+        applyGroupRoleMapping(user.id, entry, cfg);
         return Optional.of(user);
+    }
+
+    /**
+     * LDAP 组→系统角色映射 (V16): 按用户 DN 查其所属组 (roleOccupant / member),
+     * 依 role_mappings JSON 追加系统角色。只增不减, 不影响手工授权;
+     * role_mappings 为空时零行为 (与旧版兼容)。
+     */
+    void applyGroupRoleMapping(Long userId, SearchResultEntry entry, com.jade.ldapclient.config.LdapConfig cfg) {
+        String mappingsJson = cfg.roleMappings;
+        if (mappingsJson == null || mappingsJson.isBlank()) {
+            return;
+        }
+        try {
+            java.util.Map<String, String> groupToRole = new java.util.LinkedHashMap<>();
+            com.fasterxml.jackson.databind.JsonNode arr =
+                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(mappingsJson);
+            if (arr.isArray()) {
+                arr.forEach(n -> groupToRole.put(n.path("group").asText(""), n.path("role").asText("")));
+            }
+            if (groupToRole.isEmpty()) {
+                return;
+            }
+
+            // 用户所属组 (兼容 roleOccupant 与标准 member 属性)
+            java.util.Set<String> groupCns = new java.util.HashSet<>();
+            try (var conn = new com.unboundid.ldap.sdk.LDAPConnection(
+                    hostOf(cfg.ldapUrl), portOf(cfg.ldapUrl))) {
+                if (cfg.bindDn != null && !cfg.bindDn.isBlank()) {
+                    conn.bind(cfg.bindDn, cfg.bindPassword == null ? "" : cfg.bindPassword);
+                }
+                String filter = com.unboundid.ldap.sdk.Filter.createORFilter(
+                        com.unboundid.ldap.sdk.Filter.createEqualityFilter("roleOccupant", entry.getDN()),
+                        com.unboundid.ldap.sdk.Filter.createEqualityFilter("member", entry.getDN())
+                ).toString();
+                SearchResult groups = conn.search(cfg.baseDn, com.unboundid.ldap.sdk.SearchScope.SUB,
+                        filter, "cn");
+                for (SearchResultEntry g : groups.getSearchEntries()) {
+                    String cn = g.getAttributeValue("cn");
+                    if (cn != null) {
+                        groupCns.add(cn);
+                    }
+                }
+            }
+
+            for (java.util.Map.Entry<String, String> m : groupToRole.entrySet()) {
+                if (!groupCns.contains(m.getKey()) || m.getValue().isBlank()) {
+                    continue;
+                }
+                // 原生 SQL: 角色实体在 jade-admin 模块, 此处不引依赖
+                int inserted = em.createNativeQuery(
+                        "INSERT INTO sys_user_role (user_id, role_id) "
+                                + "SELECT :uid, r.id FROM sys_role r WHERE r.role_code = :code "
+                                + "AND NOT EXISTS (SELECT 1 FROM sys_user_role ur "
+                                + "WHERE ur.user_id = :uid AND ur.role_id = r.id)")
+                        .setParameter("uid", userId)
+                        .setParameter("code", m.getValue())
+                        .executeUpdate();
+                if (inserted > 0) {
+                    io.quarkus.logging.Log.infof(
+                            "ldap role mapped: user=%s group=%s -> role=%s", entry.getDN(), m.getKey(), m.getValue());
+                }
+            }
+        } catch (Exception e) {
+            // 映射失败不阻断登录
+            io.quarkus.logging.Log.errorf(e, "ldap role mapping failed: user=%s", entry.getDN());
+        }
     }
 
     private String hostOf(String url) {

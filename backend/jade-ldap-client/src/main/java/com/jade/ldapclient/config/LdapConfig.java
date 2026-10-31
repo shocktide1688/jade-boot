@@ -56,6 +56,10 @@ public class LdapConfig extends PanacheEntityBase {
     @Column(name = "user_search_filter", length = 300)
     public String userSearchFilter = "(uid={0})";
 
+    /** LDAP 组→系统角色映射 JSON: [{"group":"cn","role":"roleCode"}]; 空 = 不映射 */
+    @Column(name = "role_mappings", length = 2000)
+    public String roleMappings;
+
     /** 认证成功后自动创建本地 SysUser (auth_source=ldap) */
     @Column(name = "auto_create_user", nullable = false)
     public Boolean autoCreateUser = true;
