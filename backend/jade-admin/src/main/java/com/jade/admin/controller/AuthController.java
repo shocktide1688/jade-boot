@@ -5,6 +5,7 @@ import com.jade.admin.dto.LoginRequest;
 import com.jade.admin.dto.LoginResponse;
 import com.jade.admin.service.AuthService;
 import com.jade.admin.service.CaptchaService;
+import com.jade.redis.limiter.RateLimiter;
 import com.jade.common.api.R;
 import com.jade.security.entity.SysUser;
 import com.jade.security.jwt.MpJwtUtil;
@@ -36,6 +37,9 @@ public class AuthController {
     CaptchaService captchaService;
 
     @Inject
+    RateLimiter rateLimiter;
+
+    @Inject
     SysUserRepository userRepository;
 
     @Inject
@@ -59,8 +63,12 @@ public class AuthController {
     @GET
     @Path("/captcha")
     @PermitAll
-    @Operation(summary = "获取图形验证码", description = "返回 uuid + SVG 图片，登录时随 uuid/code 回传")
-    public R<CaptchaResponse> captcha() {
+    @Operation(summary = "获取图形验证码", description = "返回 uuid + PNG 图片，登录时随 uuid/code 回传")
+    public R<CaptchaResponse> captcha(@Context HttpHeaders headers) {
+        // IP 限流: 30 次/分钟, 防刷图/资源滥用 (Redis 故障 fail-open)
+        if (!rateLimiter.tryAcquire("captcha:" + clientIp(headers), 30, 60)) {
+            return R.fail(429, "获取验证码过于频繁, 请稍后再试");
+        }
         return R.ok(captchaService.generate());
     }
 

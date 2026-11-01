@@ -1,16 +1,14 @@
 package com.jade.admin;
 
+import com.jade.admin.service.CaptchaService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
 import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
@@ -35,18 +33,8 @@ class NoRedisLoginAttemptTest {
         }
     }
 
-    /** 从我们生成的 SVG（base64 data URI）里按顺序抠出验证码字符 */
-    private String solveCaptcha(String dataUri) {
-        String svg = new String(Base64.getDecoder().decode(
-                dataUri.substring("data:image/svg+xml;base64,".length())), StandardCharsets.UTF_8);
-        StringBuilder code = new StringBuilder();
-        Matcher m = Pattern.compile("<text[^>]*>([^<]+)</text>").matcher(svg);
-        while (m.find()) {
-            code.append(m.group(1));
-        }
-        assertEquals(4, code.length(), "SVG 中应包含 4 个验证码字符: " + svg);
-        return code.toString();
-    }
+    @Inject
+    CaptchaService captchaService;
 
     @Test
     void captcha_flow_works_without_redis() {
@@ -68,7 +56,6 @@ class NoRedisLoginAttemptTest {
                 .then().statusCode(200).body("code", equalTo(0))
                 .extract().jsonPath();
         String uuid = captcha.getString("data.uuid");
-        String code = solveCaptcha(captcha.getString("data.image"));
 
         given().contentType(ContentType.JSON).body(
                         "{\"username\":\"admin\",\"password\":\"admin123\",\"uuid\":\"" + uuid + "\",\"code\":\"XXXX\"}")
@@ -80,8 +67,8 @@ class NoRedisLoginAttemptTest {
                 .then().statusCode(200).body("code", equalTo(0))
                 .extract().jsonPath();
         String freshUuid = fresh.getString("data.uuid");
-        String freshCode = solveCaptcha(fresh.getString("data.image"));
-        assertTrue(freshCode.matches("[A-Z0-9]{4}"));
+        String freshCode = captchaService.peekAnswer(freshUuid); // PNG 不再可解析, 直接读服务端答案
+        assertTrue(freshCode != null && freshCode.matches("[A-Z0-9]{4}"));
 
         given().contentType(ContentType.JSON).body(
                         "{\"username\":\"admin\",\"password\":\"admin123\",\"uuid\":\"" + freshUuid + "\",\"code\":\"" + freshCode + "\"}")

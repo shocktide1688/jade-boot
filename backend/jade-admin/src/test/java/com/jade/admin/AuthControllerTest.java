@@ -136,7 +136,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void captcha_endpoint_returns_svg() {
+    void captcha_endpoint_returns_png() {
         given()
                 .when()
                 .get("/api/v1/auth/captcha")
@@ -144,7 +144,7 @@ class AuthControllerTest {
                 .statusCode(200)
                 .body("code", equalTo(0))
                 .body("data.uuid", notNullValue())
-                .body("data.image", containsString("data:image/svg+xml;base64,"));
+                .body("data.image", containsString("data:image/png;base64,"));
     }
 
     @Test
