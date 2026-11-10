@@ -125,9 +125,13 @@ public class AuthController {
         if (!result.verified) {
             return R.fail(400, "旧密码错误");
         }
-        user.password = at.favre.lib.crypto.bcrypt.BCrypt.withDefaults()
+        String newHash = at.favre.lib.crypto.bcrypt.BCrypt.withDefaults()
                 .hashToString(10, newPwd.toCharArray());
+        user.password = newHash;
         userRepository.persist(user);
+        // SysUser.password 标了 updatable=false, Panache dirty-check 不会生成该列的 UPDATE,
+        // 必须显式 DML 更新, 否则改密码静默无效 (响应成功但库里仍是旧哈希)
+        SysUser.update("password = ?1 where username = ?2", newHash, username);
         return R.ok();
     }
 
