@@ -1,7 +1,6 @@
 package com.jade.admin;
 
 import io.quarkus.test.junit.QuarkusTest;
-import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,10 +28,8 @@ class DictControllerTest {
 
     @BeforeAll
     static void login() {
-        // 显式固定端口: 防止 RestAssured 端口注入失效时请求打到 8080 的其它服务
-        RestAssured.baseURI = "http://localhost";
-        RestAssured.port = Integer.getInteger("quarkus.http.test-port", 8081);
-        System.out.println("[DictTest] RestAssured port = " + RestAssured.port);
+        // 端口由 QuarkusTest 注入 (quarkus.http.test-port), 不要手动覆盖 RestAssured.port:
+        // Integer.getInteger 读不到配置文件值会恒取默认端口, 且静态字段被污染会拖垮同 JVM 后续测试类
         AuthHelpers.authAll(AuthHelpers.loginAsAdmin());
     }
 
