@@ -9,7 +9,7 @@ import TagsView from '@/components/TagsView.vue'
 import request from '@/utils/request'
 import {
   House, Expand, Fold, UserFilled, User, Menu, OfficeBuilding, Reading,
-  Document, Key, Refresh, SwitchButton, Bell,
+  Document, Key, Refresh, SwitchButton, Bell, Setting,
 } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
@@ -28,7 +28,7 @@ const cachedViews = computed(
 const ICON_MAP: Record<string, any> = {
   首页: House, 用户管理: User, 角色管理: UserFilled, 菜单管理: Menu,
   部门管理: OfficeBuilding, 字典管理: Reading, 操作日志: Document, 登录日志: Key,
-  通知公告: Bell,
+  通知公告: Bell, 系统配置: Setting,
 }
 
 async function loadMenus() {
@@ -68,7 +68,10 @@ function filterUnregistered(items: any[]): any[] {
     })
 }
 
-onMounted(loadMenus)
+onMounted(() => {
+  loadMenus()
+  appStore.loadConfig()
+})
 
 const activeMenu = computed(() => router.currentRoute.value.path)
 
@@ -98,9 +101,9 @@ async function handleCommand(cmd: string) {
 <template>
   <el-container class="layout">
     <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="aside">
-      <div class="logo" @click="router.push('/dashboard')">
-        <span v-if="!appStore.sidebarCollapsed">Jade Platform</span>
-        <span v-else>玉</span>
+      <div class="logo" :title="appStore.title" @click="router.push('/dashboard')">
+        <span v-if="!appStore.sidebarCollapsed">{{ appStore.title }}</span>
+        <span v-else>{{ appStore.title.charAt(0) }}</span>
       </div>
       <el-menu
         :default-active="activeMenu"

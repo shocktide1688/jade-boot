@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useAppStore } from '@/stores/app'
 import request, { BizError } from '@/utils/request'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const appStore = useAppStore()
+
+// 登录页公开读取系统配置 (品牌标题 + 欢迎语), 接口失败回落默认值
+onMounted(() => { appStore.loadConfig() })
 
 const form = reactive({ username: 'admin', password: 'admin123', uuid: '', code: '' })
 const loading = ref(false)
@@ -46,13 +51,13 @@ async function handleLogin() {
   <div class="login-page">
     <div class="login-bg">
       <div class="brand">
-        <h1 class="title">Jade Platform</h1>
+        <h1 class="title">{{ appStore.title }}</h1>
         <p class="subtitle">温润如玉 · 稳定如石</p>
       </div>
     </div>
 
     <div class="login-box">
-      <h2 class="form-title">欢迎登录</h2>
+      <h2 class="form-title">{{ appStore.loginWelcome }}</h2>
       <el-form :model="form" label-position="top" @submit.prevent="handleLogin">
         <el-form-item label="用户名">
           <el-input v-model="form.username" placeholder="请输入用户名" size="large" />
