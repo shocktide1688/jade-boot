@@ -9,7 +9,7 @@ import TagsView from '@/components/TagsView.vue'
 import request from '@/utils/request'
 import {
   House, Expand, Fold, UserFilled, User, Menu, OfficeBuilding, Reading,
-  Document, Key, Refresh, SwitchButton, Bell, Setting,
+  Document, Key, Refresh, SwitchButton, Bell, Setting, Collection,
 } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
@@ -28,7 +28,7 @@ const cachedViews = computed(
 const ICON_MAP: Record<string, any> = {
   首页: House, 用户管理: User, 角色管理: UserFilled, 菜单管理: Menu,
   部门管理: OfficeBuilding, 字典管理: Reading, 操作日志: Document, 登录日志: Key,
-  通知公告: Bell, 系统配置: Setting,
+  通知公告: Bell, 系统配置: Setting, 参数设置: Collection,
 }
 
 async function loadMenus() {
