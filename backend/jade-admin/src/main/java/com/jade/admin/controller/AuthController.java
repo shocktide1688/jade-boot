@@ -20,6 +20,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
+import java.util.Map;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -87,6 +88,23 @@ public class AuthController {
         }
         user.password = null;
         return R.ok(user);
+    }
+
+    @POST
+    @Path("/renew")
+    @Authenticated
+    @Operation(summary = "滑动续期", description = "前端路由切换时调用: 按当前身份重签全新 token, 活跃用户永不过期")
+    public R<Map<String, String>> renew() {
+        if (identity == null || identity.isAnonymous() || identity.getPrincipal() == null) {
+            return R.fail(401, "未登录");
+        }
+        String username = identity.getPrincipal().getName();
+        SysUser user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) {
+            return R.fail(401, "账号不存在, 请重新登录");
+        }
+        String token = mpJwtUtil.generate(user.id, username, identity.getRoles(), user.tenantId);
+        return R.ok(Map.of("token", token, "renewed", "true"));
     }
 
     @PUT
